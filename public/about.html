@@ -1,194 +1,1196 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<!-- Copyright (c) 2026 Nullschool Technologies. For a free version of this project, see https://github.com/cambecc/earth -->
+<html lang="en" dir="ltr" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb#">
 <head>
     <meta charset="utf-8"/>
-    <title>about earth</title>
-    <link rel="shortcut icon" href="./favicon.ico"/>
-    <link rel="stylesheet" type="text/css" href="./styles/styles.css"/>
+    <title>about earth :: a global map of wind, weather, and ocean conditions</title>
+    <script type="application/ld+json">{
+        "@context": "http://schema.org",
+        "@type": "Map",
+        "name": "earth",
+        "description": "Implementation details behind 'earth', an animated map of current wind, weather, ocean, and pollution conditions.",
+        "author": {
+            "@type": "Person",
+            "name": "Cameron Beccario"
+        },
+        "url": "https://earth.nullschool.net/about",
+        "sameAs": [
+            "https://www.facebook.com/EarthWindMap"
+        ],
+        "image": "https://earth.nullschool.net/sample.jpg"
+    }</script>
+    <meta name="description"        content="Implementation details behind &#39;earth&#39;, an animated map of current wind, weather, ocean, and pollution conditions."/>
+    <meta property="og:type"        content="website"/>
+    <meta property="og:title"       content="about earth :: a global map of wind, weather, and ocean conditions"/>
+    <meta property="og:description" content="Implementation details behind &#39;earth&#39;, an animated map of current wind, weather, ocean, and pollution conditions."/>
+    <meta property="og:url"         content="https://earth.nullschool.net/about"/>
+    <meta property="og:image"       content="https://earth.nullschool.net/sample.jpg"/>
+    <meta property="fb:admins"      content="510217216"/>
 
-    <link rel="alternate" hreflang="x-default" href="http://earth.nullschool.net/about.html"/>
-    <link rel="alternate" hreflang="ja" href="http://earth.nullschool.net/jp/about.html"/>
+    <meta name="viewport" content="width=device-width"/>
+    <meta name="format-detection" content="telephone=no"/>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <link rel="icon" href="./favicon.ico"/>
+
+    <!-- $LANG$ -->
+    <link rel="canonical" href="https://earth.nullschool.net/about"/>
+    <link rel="alternate" href="https://earth.nullschool.net/about" hreflang="en"/>
+    <link rel="alternate" href="https://earth.nullschool.net/cs/about" hreflang="cs"/>
+    <link rel="alternate" href="https://earth.nullschool.net/es/about" hreflang="es"/>
+    <link rel="alternate" href="https://earth.nullschool.net/fr/about" hreflang="fr"/>
+    <link rel="alternate" href="https://earth.nullschool.net/hi/about" hreflang="hi"/>
+    <link rel="alternate" href="https://earth.nullschool.net/jp/about" hreflang="ja"/>
+    <link rel="alternate" href="https://earth.nullschool.net/ko/about" hreflang="ko"/>
+    <link rel="alternate" href="https://earth.nullschool.net/pt/about" hreflang="pt"/>
+    <link rel="alternate" href="https://earth.nullschool.net/ru/about" hreflang="ru"/>
+    <link rel="alternate" href="https://earth.nullschool.net/zh-cn/about" hreflang="zh-Hans"/>
+    <link rel="alternate" href="https://earth.nullschool.net/zh-Hant/about" hreflang="zh-Hant"/>
+    <link rel="alternate" href="https://earth.nullschool.net/about" hreflang="x-default"/>
+
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-6SYP36R2F0"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+    </script>
+    <script>void function(){"use strict";try{
+
+        const options = {
+            'allow_ad_personalization_signals': false,
+            'allow_google_signals': false,
+
+        };
+
+
+        gtag('js', new Date());
+        gtag('config', 'G-6SYP36R2F0', options);
+
+    }catch(e){console.error(e)}}();</script>
+
+    <script>void function(){"use strict";try{
+
+        const style = document.documentElement.style;
+        style.setProperty("--font-size", localStorage.getItem("settings.font_size") ?? "medium");
+        style.setProperty("--font-weight", localStorage.getItem("settings.font_weight") ?? "400");
+
+    }catch(e){console.error(e)}}();</script>
+
+    <style>
+
+
+        :root {
+
+            --info-area-top:    env(safe-area-inset-top,    0px);
+            --info-area-right:  env(safe-area-inset-right,  0px);
+            --info-area-bottom: env(safe-area-inset-bottom, 0px);
+            --info-area-left:   env(safe-area-inset-left,   0px);
+            --info-area:        var(--info-area-top) var(--info-area-right) var(--info-area-bottom) var(--info-area-left);
+
+            --ctrl-area-top:    max(var(--info-area-top),    16px);
+            --ctrl-area-right:  max(var(--info-area-right),  16px);
+            --ctrl-area-bottom: max(var(--info-area-bottom), 16px);
+            --ctrl-area-left:   max(var(--info-area-left),   16px);
+            --ctrl-area:        var(--ctrl-area-top) var(--ctrl-area-right) var(--ctrl-area-bottom) var(--ctrl-area-left);
+
+            --safe-top:    1rem;
+            --safe-right:  1rem;
+            --safe-bottom: 4rem;
+            --safe-left:   1rem;
+
+            --webui-area-top:    var(--safe-top);
+            --webui-area-right:  var(--safe-right);
+            --webui-area-bottom: var(--safe-bottom);
+            --webui-area-left:   var(--safe-left);
+            --webui-area:        var(--webui-area-top) var(--webui-area-right) var(--webui-area-bottom) var(--webui-area-left);
+        }
+
+        :root {
+            --font-size: medium;
+            --font-weight: 400;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        .cloaked {
+            visibility: hidden !important;
+        }
+
+        .invisible:not(:focus) {
+            clip: rect(0 0 0 0);
+            border: 0;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            overflow: hidden;
+            padding: 0;
+            position: absolute;
+            white-space: nowrap;
+        }
+
+        [inert], [inert] * {
+            cursor: default !important;
+            pointer-events: none !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+        }
+
+        .no-select {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        @font-face {
+            font-family: MPLUS1-base;
+            src: url("./fonts/MPLUS1-Regular-base~e56fa902.woff2");
+            font-weight: 400;
+            unicode-range: U+0,U+9-A,U+D,U+20-7E,U+A0-A1,U+AB,U+B0-B1,U+B4-B5,U+BA-BB,U+BD,U+C0-C1,U+C9,U+CD,U+D8,U+DA,U+E0-E4,U+E7-EA,U+ED-EE,U+F1,U+F3-F5,U+F8-FA,U+FD,U+10C-10D,U+10F,U+11B,U+11F,U+131,U+142,U+144,U+148,U+153,U+159,U+160-161,U+165,U+16F,U+17D-17E,U+192,U+2DD,U+2013-2014,U+2018-2019,U+201C-201D;
+        }
+
+        @font-face {
+            font-family: MPLUS1-base;
+            src: url("./fonts/MPLUS1-SemiBold-base~bcdc726c.woff2");
+            font-weight: 600;
+            unicode-range: U+0,U+9-A,U+D,U+20-7E,U+A0-A1,U+AB,U+B0-B1,U+B4-B5,U+BA-BB,U+BD,U+C0-C1,U+C9,U+CD,U+D8,U+DA,U+E0-E4,U+E7-EA,U+ED-EE,U+F1,U+F3-F5,U+F8-FA,U+FD,U+10C-10D,U+10F,U+11B,U+11F,U+131,U+142,U+144,U+148,U+153,U+159,U+160-161,U+165,U+16F,U+17D-17E,U+192,U+2DD,U+2013-2014,U+2018-2019,U+201C-201D;
+        }
+
+        @font-face {
+            font-family: NotoSans-base;
+            src: url("./fonts/NotoSans-Regular-base~d68198ad.woff2");
+            font-weight: 400;
+            unicode-range: U+0,U+9-A,U+D,U+20,U+A0,U+B2-B3,U+B9,U+394,U+39F,U+3B3-3B5,U+3B8,U+3BB,U+3C0-3C1,U+3C4,U+3C6,U+410-418,U+41A,U+41C-428,U+42D,U+42F-44F,U+451,U+901-903,U+905-90A,U+90F-911,U+913-918,U+91A-928,U+92A-930,U+932,U+935-939,U+93C,U+93E-943,U+947-949,U+94B-94D,U+964,U+2011,U+2032-2033,U+2070,U+2074-2079,U+207B;
+        }
+
+        @font-face {
+            font-family: NotoSans-base;
+            src: url("./fonts/NotoSans-SemiBold-base~d85f0872.woff2");
+            font-weight: 600;
+            unicode-range: U+0,U+9-A,U+D,U+20,U+A0,U+B2-B3,U+B9,U+394,U+39F,U+3B3-3B5,U+3B8,U+3BB,U+3C0-3C1,U+3C4,U+3C6,U+410-418,U+41A,U+41C-428,U+42D,U+42F-44F,U+451,U+901-903,U+905-90A,U+90F-911,U+913-918,U+91A-928,U+92A-930,U+932,U+935-939,U+93C,U+93E-943,U+947-949,U+94B-94D,U+964,U+2011,U+2032-2033,U+2070,U+2074-2079,U+207B;
+        }
+
+        [lang] {
+            font-family: MPLUS1-base,NotoSans-base,system-ui,sans-serif;
+        }
+
+        :root {
+            font-size: var(--font-size);
+
+            --font-size-xxxl: max(9px, 3rem);
+            --font-size-xxl:  max(9px, 2rem);
+            --font-size-xl:   max(9px, 1.5rem);
+            --font-size-l:    max(9px, 1.125rem);
+            --font-size-m:    max(9px, 1rem);
+            --font-size-s:    max(9px, 0.8125rem);
+            --font-size-xs:   max(9px, 0.625rem);
+            --font-size-xxs:  max(9px, 0.5625rem);
+            font-weight: var(--font-weight);
+            line-height: 1.5;
+            text-size-adjust: none;
+            -webkit-text-size-adjust: none;
+            -webkit-font-smoothing: subpixel-antialiased;
+        }
+
+        sub {
+            vertical-align: baseline;
+            position: relative;
+            bottom: -0.3em;
+        }
+
+        sup {
+            vertical-align: baseline;
+            position: relative;
+            bottom: 0.45em;
+        }
+
+        .md {
+            width: 1.25em;
+            height: 1.25em;
+            vertical-align: sub;
+        }
+
+        .fa {
+            width: 1em;
+            height: 1em;
+            vertical-align: -5%;
+        }
+
+        .fa-location-arrow, .fa-play {
+            width: 0.81em;
+        }
+
+        .fa-wider {
+            width: 1.2em;
+        }
+
+        [dir="ltr"] .flip-x-when-ltr {
+            transform: scaleX(-1);
+        }
+
+        [dir="rtl"] .flip-x-when-rtl {
+            transform: scaleX(-1);
+        }
+
+        .blur {
+            filter: blur(1px);
+        }
+
+        .a11y-tests-grayscale {
+            filter: grayscale(100%) !important;
+        }
+
+        body {
+            margin: 0;
+            color: #eeeeee;
+            background: #000005;
+        }
+
+        table {
+            border-collapse: collapse;
+        }
+
+        th {
+            font-weight: unset;
+        }
+
+        td, th {
+            padding: 0;
+            margin: 1px;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        a {
+            color: #979797;
+            text-decoration: none;
+        }
+
+        button {
+            font: inherit;
+            border: none;
+            border-radius: 0.25rem/0.25rem;
+            min-width: 2rem;
+            padding: 0 0.5rem;
+            margin: 0;
+            background-color: transparent;
+            cursor: pointer;
+
+            color: #979797;
+
+            touch-action: manipulation;
+        }
+
+        [aria-checked="true"],
+        [aria-pressed="true"],
+        [aria-selected="true"],
+        .selected {
+            color: #e7ca7a;
+            background: #474747;
+        }
+
+        button:focus,
+        button:hover,
+        a:focus,
+        a:hover {
+            color: #ffffff;
+        }
+
+        button[aria-disabled="true"] {
+            color: #444444;
+            background: inherit;
+        }
+
+        .gap0p25 {
+            margin: 0 0.125rem;
+        }
+
+        .gap0p5 {
+            margin: 0 0.25rem;
+        }
+
+        .gap-neg0p5 {
+            margin: 0 -0.25rem;
+        }
+
+        main {
+            padding: 1rem 1rem 3rem 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            row-gap: 1.25rem;
+        }
+
+        main > * {
+            padding: 0;
+            margin: 0;
+            text-align: center;
+            max-width: 60rem;
+        }
+
+        #cover {
+            border: 1px solid #eee;
+            border-radius: 0.5rem;
+            max-width: calc(100vw - 2rem);
+            max-height: 50vh;
+        }
+
+        #clean-logo {
+            background: white;
+            padding: 1rem 1rem 0 1rem;
+            border-radius: 0.5rem;
+            max-width: min(80vw, 15rem);
+        }
+
+        h2, h3 {
+            margin-top: 1rem;
+        }
+
+        p, span, dd, dt {
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
+        .credit-roll {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .sub-roll {
+            padding: 0.5rem;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            width: fit-content;
+        }
+
+        .credit-roll dt, .sub-roll dt {
+            grid-column: 1;
+            text-align: right;
+            padding-right: 1rem;
+        }
+
+        .credit-roll dd, .sub-roll dd {
+            grid-column: 2;
+            margin: 0;
+            text-align: left;
+            border-left: 1px solid white;
+            padding-left: 1rem;
+            padding-bottom: 0.25rem;
+        }
+
+        .sub-roll dd {
+            border-left: 1px dashed white;
+            padding-bottom: 0;
+        }
+
+        .shift-left {
+            grid-template-columns: 4fr 8fr;
+        }
+
+        dt > .fa {
+            margin-left: 0.25rem;
+        }
+
+        .translator-roll {
+            font-family: system-ui,sans-serif;
+            font-weight: normal;
+        }
+
+        .translator-roll > span {
+            padding: 0 0.5rem 0 0.5rem;
+        }
+
+    </style>
 </head>
 <body>
+<main>
+    <a href="."><img id="cover" src="./banner.jpg" alt="earth banner image"/></a>
 
-    <div id="about">
-        <div>
-            <a href="./" class="internal-link"><img id="cover" src="./cover.jpg"/></a>
-        </div>
-        <h1><a href="./" class="internal-link">earth</a></h1>
-        <div class="blurb">
-            <p class="center">a visualization of global weather conditions</p>
-            <p class="center">forecast by supercomputers</p>
-            <p class="center">updated every three hours</p>
-            <p class="center">&nbsp;</p>
-            <p class="center">ocean surface current estimates</p>
-            <p class="center">updated every five days</p>
-        </div>
-        <div>
-            <p class="left">Community |</p>
-            <p class="right">&nbsp;<a href="https://www.facebook.com/EarthWindMap">Facebook Page</a></p>
-        </div>
-        <div>
-            <p class="left">Author |</p>
-            <p class="right">&nbsp;Cameron Beccario <a href="https://twitter.com/cambecc">@cambecc</a></p>
-        </div>
-        <div>
-            <p class="left">Source |</p>
-            <p class="right">&nbsp;<a href="https://github.com/cambecc/earth">github.com/cambecc/earth</a></p>
-        </div>
-        <div>
-            <p class="left">Modules |</p>
-            <p class="right">&nbsp;<a href="http://d3js.org/">D3.js</a>,
-                <a href="http://backbonejs.org/">backbone.js</a>,
-                <a href="https://github.com/cujojs/when">when.js</a>,
-                <a href="http://nodejs.org">node.js</a>
-            </p>
-        </div>
-        <div>
-            <p class="left">Weather Data |</p>
-            <p class="right">&nbsp;Global Forecast System<br/>&nbsp;<a
-                href="http://www.emc.ncep.noaa.gov">NCEP / National Weather Service / NOAA</a>
-            </p>
-        </div>
-        <div>
-            <p class="left">Ocean Currents Data |</p>
-            <p class="right">&nbsp;OSCAR<br/>&nbsp;<a
-                href="http://www.esr.org/oscar_index.html">Earth & Space Research</a>
-            </p>
-        </div>
-        <div>
-            <p class="left">GRIB/NetCDF Decoder |</p>
-            <p class="right">&nbsp;<a href="https://github.com/Unidata/thredds">UCAR/Unidata THREDDS</a></p>
-        </div>
-        <div>
-            <p class="left">Geographic Data |</p>
-            <p class="right">&nbsp;<a href="http://www.naturalearthdata.com">Natural Earth</a></p>
-        </div>
-        <div>
-            <p class="left">Hosting |</p>
-            <p class="right">&nbsp;<a href="https://www.cloudflare.com">CloudFlare</a>,
-                <a href="http://aws.amazon.com/s3">Amazon S3</a></p>
-        </div>
-        <div>
-            <p class="left">Font |</p>
-            <p class="right">&nbsp;<a href="http://mplus-fonts.sourceforge.jp/">M+ FONTS</a>,
-                <a href="http://drinchev.github.io/monosocialiconsfont/">Mono Social Icons Font</a>
-            </p>
-        </div>
-        <div>
-            <p class="left">Waterman Butterfly |</p>
-            <p class="right">&nbsp;<a href="http://watermanpolyhedron.com/">watermanpolyhedron.com</a></p>
-        </div>
-        <div>
-            <p class="left">Earlier Work |</p>
-            <p class="right">&nbsp;<a href="http://air.nullschool.net">Tokyo Wind Map</a></p>
-        </div>
-        <div>
-            <p class="left">Inspiration |</p>
-            <p class="right">&nbsp;<a href="http://hint.fm/wind">HINT.FM wind map</a></p>
-        </div>
-        <div class="blurb">
-            <p class="center">atmospheric pressure corresponds roughly to altitude</p>
-            <p class="center">several pressure layers are meteorologically interesting</p>
-            <p class="center">they show data assuming the earth is completely smooth</p>
-            <p class="center">note: 1 hectopascal (hPa) ≡ 1 millibar (mb)</p>
-        </div>
-        <div>
-            <p class="left">1000 hPa |</p>
-            <p class="right">&nbsp;<span class="pad">00,</span>~100 m, near sea level conditions</p>
-        </div>
-        <div>
-            <p class="left"> 850 hPa |</p>
-            <p class="right">&nbsp;<span class="pad">0</span>~1,500 m, <a
-                href="http://en.wikipedia.org/wiki/Planetary_boundary_layer"
-                >planetary boundary</a>, low
-            </p>
-        </div>
-        <div>
-            <p class="left"> 700 hPa |</p>
-            <p class="right">&nbsp;<span class="pad">0</span>~3,500 m, planetary boundary, high</p>
-        </div>
-        <div>
-            <p class="left"> 500 hPa |</p>
-            <p class="right">&nbsp;<span class="pad">0</span>~5,000 m, <a
-                href="http://en.wikipedia.org/wiki/Vorticity">vorticity</a>
-            </p>
-        </div>
-        <div>
-            <p class="left"> 250 hPa |</p>
-            <p class="right">&nbsp;~10,500 m, <a
-                href="http://en.wikipedia.org/wiki/Jet_stream">jet stream</a>
-            </p>
-        </div>
-        <div>
-            <p class="left">  70 hPa |</p>
-            <p class="right">&nbsp;~17,500 m, <a
-                href="http://en.wikipedia.org/wiki/Stratosphere">stratosphere</a>
-            </p>
-        </div>
-        <div>
-            <p class="left">  10 hPa |</p>
-            <p class="right">&nbsp;~26,500 m, even more stratosphere</p>
-        </div>
-        <div class="blurb">
-            <p class="center">the "Surface" layer represents conditions at ground or water level</p>
-            <p class="center">this layer follows the contours of mountains, valleys, etc.</p>
-            <p class="center">&nbsp;</p>
-            <p class="center">overlays show another dimension of data using color</p>
-            <p class="center">some overlays are valid at a specific height</p>
-            <p class="center">while others are valid for the entire thickness of the atmosphere</p>
-        </div>
-        <div>
-            <p class="left">Wind |</p>
-            <p class="right">&nbsp;wind speed at specified height</p>
-        </div>
-        <div>
-            <p class="left">Temp |</p>
-            <p class="right">&nbsp;temperature at specified height</p>
-        </div>
-        <div>
-            <p class="left">TPW (<a href="http://en.wikipedia.org/wiki/Precipitable_water"
-                >Total Precipitable Water</a>) |</p>
-            <p class="right">
-                &nbsp;total amount of water in a column of air<br/>
-                &nbsp;stretching from ground to space
-            </p>
-        </div>
-        <div>
-            <p class="left">TCW (Total Cloud Water) |</p>
-            <p class="right">
-                &nbsp;total amount of water in clouds<br/>
-                &nbsp;in a column of air from ground to space
-            </p>
-        </div>
-        <div>
-            <p class="left">MSLP (<a
-                    href="http://en.wikipedia.org/wiki/Atmospheric_pressure#Mean_sea_level_pressure"
-                >Mean Sea Level Pressure</a>) |</p>
-            <p class="right">&nbsp;air pressure reduced to sea level</p>
-        </div>
-        <div class="blurb">
-            <a href="http://www.naturalearthdata.com"><img src="./natural-earth.jpg"/></a>
-            <a href="https://www.cloudflare.com"><img src="./cf-gray.jpg"/></a>
-        </div>
-        <div id="closing">
-            <p class="center">weather and ocean data are generated from numerical models</p>
-            <p class="center">
-                <a href="./" class="internal-link">earth.nullschool.net</a> implies no guarantee of accuracy
-            </p>
-        </div>
-    </div>
+    <h1><a href=".">nullschool earth</a></h1>
 
-    <script>
-        (function(i, s, o, g, r, a, m) {
-            i['GoogleAnalyticsObject'] = r;
-            i[r] = i[r] || function() { (i[r].q = i[r].q || []).push(arguments); }, i[r].l = 1 * new Date();
-            a = s.createElement(o), m = s.getElementsByTagName(o)[0];
-            a.async = 1; a.src = g; m.parentNode.insertBefore(a, m);
-        })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
-        ga('create', 'UA-44235933-2', 'nullschool.net');
-        ga('send', 'pageview');
-    </script>
+    <p>a visualization of global weather conditions<br>forecast by supercomputers<br>updated every three hours</p>
+    <p>ocean surface current estimates<br>updated every day</p>
+    <p>ocean surface temperatures and<br>anomaly from daily average (1981-2011)<br>updated daily</p>
+    <p>ocean waves<br>updated every three hours</p>
+    <p>aurora<br>updated every thirty minutes</p>
 
+    <h2>created by</h2>
+    <p>
+        <a href="https://www.linkedin.com/in/cambecc/">Cameron Beccario</a> -
+        <svg class="fa"><use href="#fa-bluesky"/></svg> <a href="https://bsky.app/profile/cambecc.nullschool.net">@cambecc.nullschool.net</a><br>
+        <a href="https://nullschool.net">Nullschool Technologies Inc.</a>
+    </p>
+
+    <h2>Community</h2>
+    <dl class="credit-roll">
+        <dt>
+            Newsletter
+            <svg class="fa"><use href="#fa-newspaper"/></svg>
+        </dt>
+        <dd>
+            <a href="https://news.nullschool.net/">news.nullschool.net</a>
+        </dd>
+        <dt>
+            Facebook
+            <svg class="fa"><use href="#fa-facebook"/></svg>
+        </dt>
+        <dd>
+            <a href="https://www.facebook.com/EarthWindMap">EarthWindMap</a>
+        </dd>
+        <dt>
+            YouTube
+            <svg class="fa"><use href="#fa-youtube"/></svg>
+        </dt>
+        <dd>
+            <a href="https://www.youtube.com/@nullschool-tech">@nullschool-tech</a>
+        </dd>
+        <dt>
+            Instagram
+            <svg class="fa"><use href="#fa-instagram"/></svg>
+        </dt>
+        <dd>
+            <a href="https://www.instagram.com/nullschool/">@nullschool</a>
+        </dd>
+    </dl>
+
+    <h2>feedback</h2>
+    <p>
+        <a href="https://forms.gle/vNZkFGTLnqq7HJQB7">provide feedback about this site</a>
+    </p>
+
+    <h2>inquiries</h2>
+    <p>contact <a href="mailto:inquiries@nullschool.net">inquiries@nullschool.net</a> for licensing or other questions</p>
+
+    <h2>data sources</h2>
+    <p>
+        this product would not exist without the steady streams of Earth science data produced by scientists and engineers at government agencies and research labs across the globe
+    </p>
+    <dl class="credit-roll shift-left">
+        <dt>
+            Weather Data
+        </dt>
+        <dd>
+            GFS (Global Forecast System)<br>
+            <a href="http://www.emc.ncep.noaa.gov">EMC / NCEP / NWS / NOAA</a>
+        </dd>
+        <dt>
+            Ocean Currents Data
+        </dt>
+        <dd>
+            OSCAR v2.0<br>
+            <a href="https://www.esr.org/research/oscar">Earth & Space Research</a><br>
+            Global Ocean Physics Analysis and Forecast<br>
+            <a href="https://doi.org/10.48670/moi-00016">E.U. Copernicus Marine Service Information (CMEMS). Marine Data Store (MDS). DOI: 10.48670/moi-00016</a>
+        </dd>
+        <dt>
+            Sea Surface Temperature
+        </dt>
+        <dd>
+            OI SST (Optimum Interpolation Sea Surface Temperature) V2.1<br>
+            <a href="https://psl.noaa.gov">NOAA Physical Sciences Laboratory, Boulder, Colorado, USA</a><br>
+            <span style="padding-left: 2rem">note: OI SST data is preliminary if fresher than two weeks and may change</span><br>
+            OSTIA (Operational Sea Surface Temperature and Sea Ice Analysis)<br>
+            <a href="https://ghrsst-pp.metoffice.gov.uk/ostia-website/index.html">UK Met Office + GHRSST + E.U. Copernicus Marine Service Information (CMEMS)</a><br>
+            RTGSST (Real Time Global Sea Surface Temperature)<br>
+            <a href="http://polar.ncep.noaa.gov">MMAB / EMC / NCEP / NWS / NOAA</a>
+        </dd>
+        <dt>
+            Ocean Waves
+        </dt>
+        <dd>
+            WAVEWATCH III<br>
+            <a href="http://polar.ncep.noaa.gov/waves">MMAB / EMC / NCEP / NWS / NOAA</a>
+        </dd>
+        <dt>
+            Bleaching Alert Area
+        </dt>
+        <dd>
+            <a href="https://coralreefwatch.noaa.gov">Coral Reef Watch / NOAA</a>
+        </dd>
+        <dt>
+            Aerosols and Chemistry
+        </dt>
+        <dd>
+            GEOS-5 (Goddard Earth Observing System)<br>
+            <a href="http://gmao.gsfc.nasa.gov">GMAO / NASA</a><br>
+            CAMS (Copernicus Atmosphere Monitoring System)<br>
+            <a href="https://atmosphere.copernicus.eu/">Copernicus / European Commission + ECMWF</a>
+        </dd>
+        <dt>
+            Aurora
+        </dt>
+        <dd>
+            OVATION<br>
+            <a href="http://www.swpc.noaa.gov/products/aurora-30-minute-forecast">SWPC / NCEP / NWS / NOAA</a><br>
+            Processing script written by <a href="https://bsky.app/profile/spacescisteph.bsky.social">Stephanie Deppe, PhD</a>
+            (<a href="https://www.linkedin.com/in/stephanie-jh-deppe/">profile</a>)
+        </dd>
+        <dt>
+            Ultraviolet Index and Erythemal Dose Rate
+        </dt>
+        <dd>
+            <a href="https://www.cpc.ncep.noaa.gov/products/stratosphere/uv_index/uv_information.shtml">Climate Prediction Center / NCEP / NWS / NOAA</a>
+        </dd>
+        <dt>
+            Active Fires
+        </dt>
+        <dd>
+            <a href="https://earthdata.nasa.gov/firms">Fire Information for Resource Management System (FIRMS) / EOSDIS / NASA</a><br>
+            (see discussion <a href="#firms">below</a>)
+        </dd>
+    </dl>
+
+    <h2>libraries &amp; services</h2>
+    <dl class="credit-roll">
+        <dt>
+            Geographic Projection and Visualization Library
+        </dt>
+        <dd>
+            <a href="https://d3js.org/">D3</a>
+        </dd>
+        <dt>
+            Open Source Libraries
+        </dt>
+        <dd>
+            <a href="./third-party">see attribution and licenses</a>
+        </dd>
+        <dt>
+            Geographic Data
+        </dt>
+        <dd>
+            <a href="http://www.naturalearthdata.com">Natural Earth</a>
+        </dd>
+        <dt>
+            GRIB/NetCDF Decoder
+        </dt>
+        <dd>
+            <a href="https://github.com/Unidata/netcdf-java">NSF Unidata netcdf-java</a>
+        </dd>
+        <dt>
+            Hosting
+        </dt>
+        <dd>
+            <a href="https://www.cloudflare.com">Cloudflare</a><br>
+            <a href="https://aws.amazon.com/s3">Amazon S3</a><br>
+            <a href="https://www.backblaze.com/cloud-storage">Backblaze B2</a><br>
+            <a href="https://www.digitalocean.com/">Digital Ocean</a>
+        </dd>
+        <dt>
+            Fonts
+        </dt>
+        <dd>
+            <a href="https://mplusfonts.github.io/">M+ FONTS</a><br>
+            <a href="https://fonts.google.com/noto">Google Noto Fonts</a>
+        </dd>
+        <dt>
+            Icons
+        </dt>
+        <dd>
+            <a href="https://fontawesome.com">Font Awesome Free</a> by @fontawesome -
+            <a href="https://fontawesome.com/license/free">CC BY 4.0</a>
+        </dd>
+        <dt>
+            Color Scales
+        </dt>
+        <dd>
+            <a href="http://colorbrewer2.org">ColorBrewer2.org</a><br>
+            <a href="http://dx.doi.org/10.1109/VISUAL.2002.1183788">Kindlmann Linear Luminance</a><br>
+            <a href="https://mycarta.wordpress.com">MYCARTA</a><br>
+            <a href="http://www.mrao.cam.ac.uk/~dag/CUBEHELIX">Dave Green's cubehelix</a>
+        </dd>
+        <dt>
+            Free Version of Source
+        </dt>
+        <dd>
+            <a href="https://github.com/cambecc/earth">github.com/cambecc/earth</a>
+        </dd>
+    </dl>
+
+    <h2>acknowledgements</h2>
+    <dl class="credit-roll">
+        <dt>
+            Inspiration
+        </dt>
+        <dd>
+            <a href="http://hint.fm/wind">HINT.FM wind map</a>
+        </dd>
+        <dt>
+            Prototype
+        </dt>
+        <dd>
+            <a href="https://air.nullschool.net">air.nullschool.net</a>
+        </dd>
+    </dl>
+
+    <h2>about the data</h2>
+    <p>
+        the &quot;Surface&quot; layer represents conditions at ground or water level<br>this layer follows the contours of mountains, valleys, etc.
+    </p>
+    <p>
+        overlays show another dimension of data using color<br>some overlays are valid at a specific height<br>while others are valid for the entire thickness of the atmosphere
+    </p>
+    <dl class="credit-roll shift-left">
+        <dt>Wind</dt>
+        <dd>
+            wind speed at specified height
+        </dd>
+        <dt>Temp</dt>
+        <dd>
+            temperature at specified height
+        </dd>
+        <dt>RH</dt>
+        <dd>
+            relative humidity at specified height
+        </dd>
+        <dt>WBT</dt>
+        <dd>
+            <a href="https://en.wikipedia.org/wiki/Wet-bulb_temperature">wet bulb temperature</a> at 2m above surface<br>
+            calculated from GFS dry bulb temperature, dew point temperature, and pressure variables using the approach from <a href="https://www.weather.gov/epz/wxcalc_dewpoint">Brice and Hall</a>
+        </dd>
+        <dt>Dew</dt>
+        <dd>
+            <a href="https://en.wikipedia.org/wiki/Dew_point">dew point temperature</a> at 2m above surface
+        </dd>
+        <dt>WPD</dt>
+        <dd>
+            <a href="http://educypedia.karadimov.info/library/Lesson1_windenergycalc.pdf">Instantaneous Wind Power Density</a><br>
+            measure of power available in the wind: ½ρv<sup>3</sup>, where ρ is air density and v is wind velocity
+        </dd>
+        <dt>TPW</dt>
+        <dd>
+            <a href="https://en.wikipedia.org/wiki/Precipitable_water">Total Precipitable Water</a><br>
+            total amount of water in a column of air stretching from ground to space
+        </dd>
+        <dt>TCW</dt>
+        <dd>
+            Total Cloud Water<br>
+            total amount of water in clouds in a column of air from ground to space
+        </dd>
+        <dt>3HPA</dt>
+        <dd>
+            3-hour Precipitation Accumulation<br>
+            amount of precipitation over the next three hours
+        </dd>
+        <dt>CAPE</dt>
+        <dd>
+            <a href="https://en.wikipedia.org/wiki/Convective_available_potential_energy">Convective Available Potential Energy</a> from Surface<br>
+            indicates the buoyancy of air, a measure of atmospheric instability and predictor of severe weather
+        </dd>
+        <dt>MSLP</dt>
+        <dd>
+            <a href="https://en.wikipedia.org/wiki/Atmospheric_pressure#Mean_sea_level_pressure">Mean Sea Level Pressure</a><br>
+            air pressure reduced to sea level
+        </dd>
+        <dt>MI</dt>
+        <dd>
+            Misery Index<br>
+            perceived air temperature as combination of <a href="https://en.wikipedia.org/wiki/Heat_index">heat index</a> and <a href="https://en.wikipedia.org/wiki/Wind_chill">wind chill</a>
+        </dd>
+
+        <dt>UVI</dt>
+        <dd>
+            <a href="https://en.wikipedia.org/wiki/Ultraviolet_index">Ultraviolet Index</a><br>
+            risk of harm from unprotected sun exposure due to the strength of sunburn-producing ultraviolet (UV) radiation<br>
+            <dl class="sub-roll">
+                <dt>0 - 2</dt>
+                <dd>low</dd>
+                <dt>3 - 5</dt>
+                <dd>moderate</dd>
+                <dt>6 - 7</dt>
+                <dd>high</dd>
+                <dt>8 - 10</dt>
+                <dd>very high</dd>
+                <dt>11+</dt>
+                <dd>extreme</dd>
+            </dl>
+        </dd>
+        <dt>SST</dt>
+        <dd>
+            <a href="https://en.wikipedia.org/wiki/Sea_surface_temperature">Sea Surface Temperature</a><br>
+            temperature of the ocean surface
+        </dd>
+        <dt>SSTA</dt>
+        <dd>
+            <a href="https://en.wikipedia.org/wiki/Sea_surface_temperature">Sea Surface Temperature Anomaly</a><br>
+            RTG-SST: difference in ocean temperature from daily average during years 1981-2011<br>
+            OSTIA: calculated from 1981–present <a href="https://www.nodc.noaa.gov/SatelliteData/pathfinder4km/">Pathfinder</a> climatology<br>
+            OI SST: calculated from 1971-2000 OI SST V2 climatology
+        </dd>
+        <dt>HTSGW</dt>
+        <dd>
+            <a href="#waves">Significant Wave Height</a><br>
+            roughly equal to mean wave height as estimated by a &quot;trained observer&quot;
+        </dd>
+        <dt>BAA</dt>
+        <dd>
+            <a href="https://coralreefwatch.noaa.gov/product/5km/tutorial/crw11a_baa.php">Bleaching Alert Area</a> (7-day maximum)<br>
+            the level of coral bleaching heat stress:
+            <dl class="sub-roll">
+                <dt>No Stress</dt>
+                <dd>No heat stress or coral bleaching is present.</dd>
+                <dt>Bleaching Watch</dt>
+                <dd>Low-level heat stress is present.</dd>
+                <dt>Bleaching Warning</dt>
+                <dd>Risk of possible bleaching. Heat stress is accumulating.</dd>
+                <dt>Alert Level 1</dt>
+                <dd>Risk of reef-wide bleaching. Significant coral bleaching is likely.</dd>
+                <dt>Alert Level 2</dt>
+                <dd>Risk of reef-wide bleaching with mortality of heat-sensitive corals. Severe coral bleaching and significant coral death is likely.</dd>
+                <dt>Alert Level 3</dt>
+                <dd>Risk of multi-species mortality.</dd>
+                <dt>Alert Level 4</dt>
+                <dd>Risk of severe, multi-species mortality (&gt; 50% of corals).</dd>
+                <dt>Alert Level 5</dt>
+                <dd>Risk of near complete mortality (&gt; 80% of corals).</dd>
+            </dl>
+        </dd>
+        <dt>COsc</dt>
+        <dd>
+            Carbon Monoxide Surface Concentration<br>
+            the fraction of <a href="https://en.wikipedia.org/wiki/Carbon_monoxide">carbon monoxide</a> present in air at the earth&#39;s surface
+        </dd>
+        <dt>CO<sub>2</sub>sc</dt>
+        <dd>
+            Carbon Dioxide Surface Concentration<br>
+            the fraction of <a href="https://en.wikipedia.org/wiki/Carbon_dioxide">carbon dioxide</a> present in air at the earth&#39;s surface
+        </dd>
+        <dt>SO<sub>2</sub>sm</dt>
+        <dd>
+            Sulfur Dioxide Surface Mass<br>
+            amount of <a href="https://en.wikipedia.org/wiki/Sulfur_dioxide">sulfur dioxide</a> in the air near the earth&#39;s surface
+        </dd>
+        <dt>NO<sub>2</sub></dt>
+        <dd>
+            Nitrogen Dioxide<br>
+            amount of <a href="https://en.wikipedia.org/wiki/Nitrogen_dioxide">nitrogen dioxide</a> in the air near the earth&#39;s surface
+        </dd>
+        <dt>DUex</dt>
+        <dd>
+            Dust Extinction<br>
+            the <a href="#aot">aerosol optical thickness</a> (AOT) of light at 550 nm due to <a href="https://en.wikipedia.org/wiki/Dust">dust</a>
+        </dd>
+        <dt>SO<sub>4</sub>ex</dt>
+        <dd>
+            Sulfate Extinction<br>
+            the <a href="#aot">aerosol optical thickness</a> (AOT) of light at 550 nm due to <a href="https://en.wikipedia.org/wiki/Sulfate">sulfate</a>
+        </dd>
+        <dt>PM<sub>1</sub></dt>
+        <dd>
+            Particulate Matter &lt; 1 µm<br>
+            mass of <a href="https://en.wikipedia.org/wiki/Particulates">atmospheric particles</a> with a diameter less than 1 micron
+        </dd>
+        <dt>PM<sub>2.5</sub></dt>
+        <dd>
+            Particulate Matter &lt; 2.5 µm<br>
+            mass of <a href="https://en.wikipedia.org/wiki/Particulates">atmospheric particles</a> with a diameter less than 2.5 microns
+        </dd>
+        <dt>PM<sub>10</sub></dt>
+        <dd>
+            Particulate Matter &lt; 10 µm<br>
+            mass of <a href="https://en.wikipedia.org/wiki/Particulates">atmospheric particles</a> with a diameter less than 10 microns
+        </dd>
+        <dt>OMaot</dt>
+        <dd>
+            Organic Matter aerosol optical thickness<br>
+            The <a href="#aot">aerosol optical thickness</a> (AOT) of light at 550 nm due to organic matter suspended in air.<br>
+            This layer can be interpreted as the thickness of smoke from wildfires and other sources of combustion.
+        </dd>
+    </dl>
+
+    <h3>pressure levels</h3>
+    <p>
+        atmospheric pressure corresponds roughly to altitude<br>several pressure layers are meteorologically interesting<br>they show data assuming the earth is completely smooth<br>note: 1 hectopascal (hPa) = 1 millibar (mb)
+    </p>
+    <dl class="credit-roll shift-left">
+        <dt>1000 hPa</dt>
+        <dd><span class="cloaked">00,</span>~100 m, near sea level conditions</dd>
+        <dt>850 hPa</dt>
+        <dd><span class="cloaked">0</span>~1,500 m, <a href="https://en.wikipedia.org/wiki/Planetary_boundary_layer">planetary boundary</a>, low</dd>
+        <dt>700 hPa</dt>
+        <dd><span class="cloaked">0</span>~3,500 m, <a href="https://en.wikipedia.org/wiki/Planetary_boundary_layer">planetary boundary</a>, high</dd>
+        <dt>500 hPa</dt>
+        <dd><span class="cloaked">0</span>~5,000 m, <a href="https://en.wikipedia.org/wiki/Vorticity">vorticity</a></dd>
+        <dt>250 hPa</dt>
+        <dd>~10,500 m, <a href="https://en.wikipedia.org/wiki/Jet_stream">jet stream</a></dd>
+        <dt>70 hPa</dt>
+        <dd>~17,500 m, <a href="https://en.wikipedia.org/wiki/Stratosphere">stratosphere</a></dd>
+        <dt>10 hPa</dt>
+        <dd>~26,500 m, even more stratosphere</dd>
+    </dl>
+
+    <h3 id="waves">about ocean waves</h3>
+    <p><a href="https://en.wikipedia.org/wiki/Significant_wave_height">Significant Wave Height</a> is the average height of the highest 1/3 of waves at a particular point in the ocean. There&#39;s a <a href="http://www.vos.noaa.gov/MWL/apr_06/waves.shtml">great writeup here</a> describing what this means.</p>
+    <p><a href="https://en.wikipedia.org/wiki/Frequency">Peak Wave Period</a> is the (inverse) frequency of the most energetic waves passing through a particular point, whether wind generated or swells. Certainly, there are many more groups of waves moving through an area, each in different directions, but trying to show them all rapidly becomes complex. Instead, we show the one wave group contributing the most energy. This has the effect, though, of creating &quot;boundaries&quot; between regions of ocean where the #1 wave group suddenly switches to second place. Often these boundaries represent swell fronts, but other times they are just artifacts of the ranking mechanism.</p>
+
+    <h3 id="co2">about CO<sub>2</sub> concentrations<br/>for dates earlier than 2017-01-24 04:30 UTC</h3>
+    <p>While implementing the visualization of CO<sub>2</sub> surface concentration, I noticed the <a href="http://gmao.gsfc.nasa.gov/GEOS/">NASA GEOS-5 model</a> reports a global mean concentration that differs significantly from widely reported numbers. For example, from the run at 2015-11-23 00:00 UTC, the global mean is only 368 ppmv whereas CO<sub>2</sub> observatories <a href="http://www.esrl.noaa.gov/gmd/ccgg/trends/weekly.html">report concentrations closer to 400 ppmv</a>. GEOS-5 was constructed in the 2000s, so perhaps the model does not account for accumulation of atmospheric CO<sub>2</sub> over time? This is simply speculation. I am just not certain.</p>
+    <p>To bring the GEOS-5 results closer to contemporary numbers, I have added a uniform offset of +32 ppmv, increasing the global mean to 400 ppmv. This is not scientifically valid, but it does allow the visualization to become illustrative of the discussion occurring today around atmospheric CO<sub>2</sub>. Without question, I would welcome a more rigorous approach or an explanation why the GEOS-5 model produces the data that it does.</p>
+    <p>From 2017-01-24 04:30 UTC, this adjustment is no longer necessary because GEOS-5 appears to have been upgraded.</p>
+
+    <h3 id="aot">about aerosols and extinction</h3>
+    <p>An <a href="https://en.wikipedia.org/wiki/Aerosol">aerosol</a> is air containing particles. Common particles are dust, smoke, soot, and water droplets (clouds). These particles affect sunlight primarily through absorption and scattering, which combine to reduce the amount of light reaching the ground. This loss of light as it passes through the atmosphere is called <a href="https://aty.sdsu.edu/explain/extinction/extintro.html">extinction</a>.</p>
+    <p>One common measure of extinction is <a href="https://en.wikipedia.org/wiki/Optical_depth">aerosol optical thickness</a> (AOT), which is (the log of) the ratio between the power of incoming light and the power of transmitted light. This helps us understand how &quot;thick&quot; the air is with particulates.</p>
+
+    <h3 id="firms">about active fire data</h3>
+    <p>
+        Fire data is a combination of <a href="https://en.wikipedia.org/wiki/Visible_Infrared_Imaging_Radiometer_Suite">VIIRS</a> 375m NRT (NOAA-20) and VIIRS 375m NRT (Suomi NPP) active fire products. Each fire detection data point contains the time of detection (when the satellite made the measurement) and the Fire Radiative Power (FRP) in units of megawatts (MW). For more information on how to interpret the readings, see the <a href="https://www.earthdata.nasa.gov/data/tools/firms/faq">FIRMS FAQ</a> and the detailed discussion of <a href="https://earthdata.nasa.gov/earth-observation-data/near-real-time/firms/viirs-i-band-active-fire-data">VIIRS I-Band 375 m Active Fire Data</a>.
+    </p>
+    <p>
+        We acknowledge the use of data and/or imagery from NASA&#39;s <a href="https://earthdata.nasa.gov/firms">Fire Information for Resource Management System</a> (FIRMS), part of NASA&#39;s Earth Observing System Data and Information System (EOSDIS).
+    </p>
+
+    <h2 id="shortcuts">keyboard shortcuts</h2>
+    <dl class="credit-roll">
+        <dt>e</dt>
+        <dd>
+            show the menu
+        </dd>
+        <dt>escape</dt>
+        <dd>
+            close dialog/menu
+        </dd>
+        <dt>n</dt>
+        <dd>
+            go to now (the most recent data)
+        </dd>
+        <dt>shift-c</dt>
+        <dd>
+            show the date selection calendar
+        </dd>
+        <dt>j</dt>
+        <dd>
+            go backward one time step
+        </dd>
+        <dt>shift-j</dt>
+        <dd>
+            go backward several time steps
+        </dd>
+        <dt>k</dt>
+        <dd>
+            go forward one time step
+        </dd>
+        <dt>shift-k</dt>
+        <dd>
+            go forward several time steps
+        </dd>
+        <dt>g</dt>
+        <dd>
+            toggle the grid on/off
+        </dd>
+        <dt>p</dt>
+        <dd>
+            toggle the animation on/off
+        </dd>
+        <dt>shift-h</dt>
+        <dd>
+            enable/disable high definition mode
+        </dd>
+        <dt>shift-t</dt>
+        <dd>
+            show settings
+        </dd>
+    </dl>
+    <dl class="credit-roll">
+        <dt>i</dt>
+        <dd>go up one pressure level</dd>
+        <dt>shift-i</dt>
+        <dd>go up to the stratosphere</dd>
+        <dt>m</dt>
+        <dd>go down one pressure level</dd>
+        <dt>shift-m</dt>
+        <dd>go down to the surface</dd>
+    </dl>
+    <dl class="credit-roll">
+        <dt>d</dt>
+        <dd>zoom in</dd>
+        <dt>shift-d</dt>
+        <dd>zoom in faster</dd>
+        <dt>x</dt>
+        <dd>zoom out</dd>
+        <dt>shift-x</dt>
+        <dd>zoom out faster</dd>
+        <dt>w</dt>
+        <dd>rotate up</dd>
+        <dt>shift-w</dt>
+        <dd>rotate up faster</dd>
+        <dt>z</dt>
+        <dd>rotate down</dd>
+        <dt>shift-z</dt>
+        <dd>rotate down faster</dd>
+        <dt>a</dt>
+        <dd>rotate left</dd>
+        <dt>shift-a</dt>
+        <dd>rotate left faster</dd>
+        <dt>s</dt>
+        <dd>rotate right</dd>
+        <dt>shift-s</dt>
+        <dd>rotate right faster</dd>
+    </dl>
+
+    <h2>translators</h2>
+    <p class="translator-roll">
+        <span>Александр Попов</span>
+        <span>Вячеслав Епиков</span>
+        <span>1599763839</span>
+        <span>1992pb</span>
+        <span>2451158917</span>
+        <span>피시</span>
+        <span>afropolakwot</span>
+        <span>agagey</span>
+        <span>Aleksander</span>
+        <span>Alexander Kirilov</span>
+        <span>Alexey Dmitriev</span>
+        <span>Alexey Korsakov</span>
+        <span>AlexOrlovets</span>
+        <span>Anderson Porto</span>
+        <span>Andre Lz</span>
+        <span>Andrea de Franco</span>
+        <span>Andrew Pedrini</span>
+        <span>Andrey Bagmanov</span>
+        <span>Antonpek</span>
+        <span>arquerogonza</span>
+        <span>Artur Wisniewski</span>
+        <span>ashawesoman</span>
+        <span>ashvin.j.sherathiya</span>
+        <span>astrostrong</span>
+        <span>asveruz</span>
+        <span>atom</span>
+        <span>Belore Stergann</span>
+        <span>bgij</span>
+        <span>bidulem3</span>
+        <span>Birg3r</span>
+        <span>Bohuslav Šín</span>
+        <span>Bram Versteeve</span>
+        <span>Bryan</span>
+        <span>carina.bringedal</span>
+        <span>carlofrc</span>
+        <span>Cassiel Bclamson</span>
+        <span>Ching-ping Yu</span>
+        <span>Christian Leroux</span>
+        <span>contact</span>
+        <span>cuxcoll</span>
+        <span>Daniel Bartsch</span>
+        <span>Daniel Isak Marinosson</span>
+        <span>Daniel Pawlowski</span>
+        <span>Daniel Rakoczy</span>
+        <span>danielruiz1636</span>
+        <span>Darlite</span>
+        <span>davalenciano98</span>
+        <span>Davide Carlier</span>
+        <span>Denat250</span>
+        <span>deus.05</span>
+        <span>Dimitris T. Papadimitriou</span>
+        <span>dlo.daniel</span>
+        <span>Dominic Douglas</span>
+        <span>dsantosgtm</span>
+        <span>dustyhofman</span>
+        <span>e</span>
+        <span>Eason Huang</span>
+        <span>egarpunov</span>
+        <span>elier.pila</span>
+        <span>Eric Kim</span>
+        <span>essaii32</span>
+        <span>estefilippini</span>
+        <span>fantasy_lcl</span>
+        <span>farrasoctara</span>
+        <span>Felipe Faria</span>
+        <span>florian-lerch</span>
+        <span>franci00</span>
+        <span>FranklinZhang</span>
+        <span>Frederik T. de Ridder</span>
+        <span>fthmiln</span>
+        <span>georg.loesel</span>
+        <span>gherlainfo</span>
+        <span>giacomo.gerosa</span>
+        <span>Gian Centeno</span>
+        <span>giospud</span>
+        <span>gonzalo.ag88</span>
+        <span>gporter.seadog</span>
+        <span>graceang</span>
+        <span>graham.rimmington</span>
+        <span>grol2901</span>
+        <span>Hebel</span>
+        <span>holgersson</span>
+        <span>Hyung Wook Jung</span>
+        <span>Ichiro Wang</span>
+        <span>Ignacio Sanz</span>
+        <span>iii1212</span>
+        <span>InfoSecOne</span>
+        <span>Jae Soo Park</span>
+        <span>Jiří Batelka</span>
+        <span>Joanna Rinne</span>
+        <span>Joao Correia</span>
+        <span>jocelot</span>
+        <span>Jomari Joseph Barrera</span>
+        <span>Jonathan Yang</span>
+        <span>Jose A. Frias Morales</span>
+        <span>juanpaexpedite</span>
+        <span>kai.s.mueller</span>
+        <span>Karol Sapiński</span>
+        <span>Kiyun Jeon</span>
+        <span>kjetil.hoiby</span>
+        <span>kty5663</span>
+        <span>ku5an2901</span>
+        <span>laurapaccini</span>
+        <span>leandro1212</span>
+        <span>leticia.tahnee</span>
+        <span>lretamal</span>
+        <span>Luboš Motl</span>
+        <span>marcello.carreira</span>
+        <span>marco.prosdocimo</span>
+        <span>Mark</span>
+        <span>markeletona</span>
+        <span>Markus Schley</span>
+        <span>Martine Bolzinger</span>
+        <span>Matt Tang</span>
+        <span>Mattia Raffa</span>
+        <span>mavilesilva</span>
+        <span>melfi</span>
+        <span>Melissa Ortiz Massó</span>
+        <span>Meow Wang</span>
+        <span>mgb</span>
+        <span>Michael Purer</span>
+        <span>Michael</span>
+        <span>Michel Rivero</span>
+        <span>mikami_1966.1118</span>
+        <span>mikele.fit95</span>
+        <span>Miquel Bayo Moreno</span>
+        <span>mir597</span>
+        <span>MirageF1AZ</span>
+        <span>Miroslaw Lisiak</span>
+        <span>Mohannad Alahmadi</span>
+        <span>m_strugale</span>
+        <span>nando</span>
+        <span>nunolava1998</span>
+        <span>Olivier</span>
+        <span>OLS-RU</span>
+        <span>Oğuzhan Arı</span>
+        <span>Paul Bachem</span>
+        <span>Paweł Kowalczyk</span>
+        <span>pdobrev</span>
+        <span>Personim Intaned</span>
+        <span>Philippe Jabet</span>
+        <span>Plamen Dobrev</span>
+        <span>ProffLex</span>
+        <span>P_A_N_D_A_M_A_N</span>
+        <span>Rafael Nonato Bassora</span>
+        <span>rajeshgodvani</span>
+        <span>RaskiPL</span>
+        <span>reyfran8</span>
+        <span>Riccardo Monfardini</span>
+        <span>robertrosalex</span>
+        <span>Roger Helman</span>
+        <span>Roller978</span>
+        <span>rosariainpo</span>
+        <span>Russel Schwartz</span>
+        <span>santiago.giraldoc</span>
+        <span>sapan021</span>
+        <span>sarogrom</span>
+        <span>Seongmin Park</span>
+        <span>september43</span>
+        <span>Seregalsv Serega</span>
+        <span>silverhaze030</span>
+        <span>Simone Dragoni</span>
+        <span>siudzin98</span>
+        <span>skyneon77</span>
+        <span>sombrasbaul</span>
+        <span>Somil Thesia</span>
+        <span>Stephen Flynn</span>
+        <span>Steven</span>
+        <span>SUGIMOTO Tatsuo</span>
+        <span>Sunny Miu</span>
+        <span>Tayseer M Alhibshi</span>
+        <span>Telmo John</span>
+        <span>tenderstart</span>
+        <span>thanhhuyenlth</span>
+        <span>Thomas Middelveld</span>
+        <span>Thorsten Schleicher</span>
+        <span>tigormal</span>
+        <span>tigra200sx</span>
+        <span>Tomasz Waligóra</span>
+        <span>torstenleibrich</span>
+        <span>tsuka tama</span>
+        <span>ulaszewski.bartosz</span>
+        <span>ultordima</span>
+        <span>Vasily Tarasenko</span>
+        <span>vhc1967</span>
+        <span>Vu Thuong</span>
+        <span>Víctor Velarde</span>
+        <span>wasted</span>
+        <span>webfreelance</span>
+        <span>Wonmin Jeong</span>
+        <span>wtlovergirl</span>
+        <span>xesmedic</span>
+        <span>xorpid</span>
+        <span>xrdeem</span>
+        <span>xsqz</span>
+        <span>潘柏綸</span>
+        <span>yaawwad</span>
+        <span>Yauhen Bahashou</span>
+        <span>youngjune4498</span>
+        <span>Youngmin Jeon</span>
+        <span>Yukun Chen</span>
+        <span>zackcaussy</span>
+        <span>Zulus</span>
+        <span>Οverlord</span>
+
+    </p>
+
+    <h2>citations</h2>
+    <a href="https://cleanet.org/resources/47829.html">
+        <img id="clean-logo" src="./clean-logo-v4.jpg" alt="Selected-by-CLEAN logo"/>
+    </a>
+    <p class="center text">
+        Selected for inclusion in the <a href="https://cleanet.org/clean/about/selected_by_CLEAN">Climate Literacy and Energy Awareness Network</a> (CLEAN) collection of educational resources.
+    </p>
+
+    <h2>disclaimer</h2>
+    <p>
+        The GEOS-5 data used on this site have been provided by the Global Modeling and Assimilation Office (GMAO) at NASA Goddard Space Flight Center through the online data portal in the NASA Center for Climate Simulation<br>
+        GEOS-5 data (covering all Chem and Particulates layers) comes with the following <a href="http://gmao.gsfc.nasa.gov/GMAO_products/wx_analysis-prediction_products.php">disclaimer</a>: <i>Forecasts using the GEOS system are experimental and are produced for research purposes only. Use of these forecasts for purposes other than research is not recommended.</i>
+    </p>
+    <p>
+        Generated using Copernicus Atmosphere Monitoring Service Information 2017-2020. Neither the European
+        Commission nor ECMWF is responsible for any use that may be made of this information.
+    </p>
+    <p>
+        weather and ocean data are generated from numerical models<br>
+        Nullschool Technologies Inc. implies no guarantee of accuracy
+    </p>
+
+    <p><a href="https://nullschool.net/privacy">privacy policy</a></p>
+
+    <p class="center">Copyright (c) 2026 Nullschool Technologies Inc.</p>
+
+</main>
+<div hidden>
+
+    <svg>
+        <symbol id="fa-bluesky" viewBox="0 0 576 512">
+            <path fill="currentColor" d="m408 295-10-2 10 2zm-120-68c-26-51-97-145-163-192C62-9 38-2 22 6 3 14 0 42 0 58s9 136 15 156c20 66 89 88 153 81l10-2-10 2c-94 14-177 48-68 170 121 124 165-27 188-104 23 77 49 223 186 104 102-104 28-156-66-170l-10-2 10 2c64 7 133-15 153-81 6-20 15-139 15-156s-3-44-22-52c-15-8-40-15-103 29a642 642 0 0 0-163 192z"></path>
+        </symbol>
+        <symbol id="fa-facebook" viewBox="0 0 512 512">
+            <path fill="currentColor" d="M512 256a256 256 0 1 0-318 249V334h-53v-78h53v-34c0-87 40-127 125-127 16 0 44 3 56 6v71l-30-1c-42 0-58 16-58 57v28h84l-15 78h-69v176a256 256 0 0 0 225-254z"></path>
+        </symbol>
+        <symbol id="fa-instagram" viewBox="0 0 448 512">
+            <path fill="currentColor" d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8a26.8 26.8 0 1126.8-26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388a75.63 75.63 0 01-42.6 42.6c-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9A75.63 75.63 0 0149.4 388c-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1A75.63 75.63 0 0192 81.2c29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9a75.63 75.63 0 0142.6 42.6c11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z"></path>
+        </symbol>
+        <symbol id="fa-newspaper" viewBox="0 0 512 512">
+            <path fill="currentColor" d="M168 80c-13 0-24 11-24 24v304c0 8-1 17-4 24h300c13 0 24-11 24-24V104c0-13-11-24-24-24H168zM72 480c-40 0-72-32-72-72V112a24 24 0 1 1 48 0v296a24 24 0 1 0 48 0V104c0-40 32-72 72-72h272c40 0 72 32 72 72v304c0 40-32 72-72 72H72zm104-344c0-13 11-24 24-24h96c13 0 24 11 24 24v80c0 13-11 24-24 24h-96c-13 0-24-11-24-24v-80zm200-24h32a24 24 0 1 1 0 48h-32a24 24 0 1 1 0-48zm0 80h32a24 24 0 1 1 0 48h-32a24 24 0 1 1 0-48zm-176 80h208a24 24 0 1 1 0 48H200a24 24 0 1 1 0-48zm0 80h208a24 24 0 1 1 0 48H200a24 24 0 1 1 0-48z"></path>
+        </symbol>
+        <symbol id="fa-youtube" viewBox="0 0 576 512">
+            <path fill="currentColor" d="M550 124c-7-24-25-42-49-49-42-11-213-11-213-11S117 64 75 75c-24 7-42 25-49 49-11 43-11 132-11 132s0 90 11 133c7 23 25 41 49 48 42 11 213 11 213 11s171 0 213-11c24-7 42-25 49-48 11-43 11-133 11-133s0-89-11-132zM232 338V175l143 81-143 82z"></path>
+        </symbol>
+        <symbol id="ko-fi-mug" viewBox="0 0 620 496">
+            <path d="M611 171c-9-44-33-72-57-89-26-18-56-27-87-27H27C12 55 6 70 6 77v5S5 277 7 381c4 61 65 61 65 61l297-1 14-2c54-14 60-65 59-93 110 6 188-71 169-175M487 272c-24 3-43 1-43 1V129h29a66 66 0 0166 67c0 48-25 67-52 76" fill="#fff"/>
+            <path d="M221 361c5 3 8 0 8 0s70-64 102-101c28-33 30-88-19-109-48-21-87 24-87 24-35-37-87-36-111-10s-15 69 3 94c16 23 90 89 102 100l2 2" fill="#f14255"/>
+        </symbol>
+    </svg>
+
+</div>
 </body>
 </html>
