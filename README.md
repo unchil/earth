@@ -1,6 +1,9 @@
 earth
 =====
 
+un7 comment: "earth" can be found on GitHub at https://github.com/cambecc/earth.
+This is a copied project.
+
 **NOTE: the location of `dev-server.js` has changed from `{repository}/server/` to `{repository}/`**
 
 "earth" is a project to visualize global weather conditions.
@@ -70,10 +73,17 @@ We need only a few of these records to visualize wind data at a particular isoba
 the 1000 hPa wind vectors and convert them to JSON format using the [grib2json](https://github.com/cambecc/grib2json)
 utility:
 
-    YYYYMMDD=<a date, for example: 20261027>
-    curl "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl?file=gfs.t00z.pgrb2.1p00.f000&lev_10_m_above_ground=on&var_UGRD=on&var_VGRD=on&dir=%2Fgfs.${YYYYMMDD}%2F00%2Fatmos" -o gfs.t00z.pgrb2.1p00.f000    
+    
+    YYYYMMDD=<a date, for example: 20140101>
+    curl "http://nomads.ncep.noaa.gov/cgi-bin/filter_gfs.pl?file=gfs.t00z.pgrb2.1p00.f000&lev_10_m_above_ground=on&var_UGRD=on&var_VGRD=on&dir=%2Fgfs.${YYYYMMDD}00" -o gfs.t00z.pgrb2.1p00.f000  
     grib2json -d -n -o current-wind-surface-level-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
     cp current-wind-surface-level-gfs-1.0.json <earth-git-repository>/public/data/weather/current
+
+un7 comment: The calling method has changed.
+     
+    YYYYMMDD=<a date, for example: 20261027>
+    curl "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl?file=gfs.t00z.pgrb2.1p00.f000&lev_10_m_above_ground=on&var_UGRD=on&var_VGRD=on&dir=%2Fgfs.${YYYYMMDD}%2F00%2Fatmos" -o gfs.t00z.pgrb2.1p00.f000
+
 
 font subsetting
 ---------------
