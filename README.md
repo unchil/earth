@@ -2,7 +2,7 @@ earth
 =====
 
 ### un7 comment: 
-**"earth" can be found on GitHub at https://github.com/cambecc/earth. This is a copied project.**
+***"earth" can be found on GitHub at https://github.com/cambecc/earth. This is a copied project.***
 
 **NOTE: the location of `dev-server.js` has changed from `{repository}/server/` to `{repository}/`**
 
@@ -81,7 +81,7 @@ utility:
 
 
 ### un7 comment: 
-**service call url**
+***service call url***
 
     YYYYMMDD=<a date, for example: 20261027>
     curl "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl?file=gfs.t00z.pgrb2.1p00.f000&lev_10_m_above_ground=on&var_UGRD=on&var_VGRD=on&dir=%2Fgfs.${YYYYMMDD}%2F00%2Fatmos" -o gfs.t00z.pgrb2.1p00.f000
@@ -103,7 +103,7 @@ In `index.html` and `earth.js`, the buttons under the **Height** menu (`class="s
 | `undefined` | `undefined` | Entire atmospheric column | Integrated scalar overlays (`TPW`, `TCW`, `MSLP`) |
 
 ### un7 comment: 
-**grib2json parsing options**
+***grib2json parsing options***
 
 #### 1. GFS 데이터 계층(Surface / Level)별 `grib2json` 파싱 옵션 매핑 표
 
