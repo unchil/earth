@@ -4,49 +4,16 @@
 <head>
     <meta charset="utf-8"/>
     <title>about earth :: a global map of wind, weather, and ocean conditions</title>
-    <script type="application/ld+json">{
-        "@context": "http://schema.org",
-        "@type": "Map",
-        "name": "earth",
-        "description": "Implementation details behind 'earth', an animated map of current wind, weather, ocean, and pollution conditions.",
-        "author": {
-            "@type": "Person",
-            "name": "Cameron Beccario"
-        },
-        "url": "https://earth.nullschool.net/about",
-        "sameAs": [
-            "https://www.facebook.com/EarthWindMap"
-        ],
-        "image": "https://earth.nullschool.net/sample.jpg"
-    }</script>
-    <meta name="description"        content="Implementation details behind &#39;earth&#39;, an animated map of current wind, weather, ocean, and pollution conditions."/>
-    <meta property="og:type"        content="website"/>
-    <meta property="og:title"       content="about earth :: a global map of wind, weather, and ocean conditions"/>
-    <meta property="og:description" content="Implementation details behind &#39;earth&#39;, an animated map of current wind, weather, ocean, and pollution conditions."/>
-    <meta property="og:url"         content="https://earth.nullschool.net/about"/>
-    <meta property="og:image"       content="https://earth.nullschool.net/sample.jpg"/>
-    <meta property="fb:admins"      content="510217216"/>
-
-    <meta name="viewport" content="width=device-width"/>
-    <meta name="format-detection" content="telephone=no"/>
-    <meta name="apple-mobile-web-app-capable" content="yes">
 
     <link rel="icon" href="./favicon.ico"/>
+    <link rel="stylesheet" type="text/css" href="./styles/styles_new.css"/>
 
     <!-- $LANG$ -->
-    <link rel="canonical" href="https://earth.nullschool.net/about"/>
-    <link rel="alternate" href="https://earth.nullschool.net/about" hreflang="en"/>
-    <link rel="alternate" href="https://earth.nullschool.net/cs/about" hreflang="cs"/>
-    <link rel="alternate" href="https://earth.nullschool.net/es/about" hreflang="es"/>
-    <link rel="alternate" href="https://earth.nullschool.net/fr/about" hreflang="fr"/>
-    <link rel="alternate" href="https://earth.nullschool.net/hi/about" hreflang="hi"/>
-    <link rel="alternate" href="https://earth.nullschool.net/jp/about" hreflang="ja"/>
-    <link rel="alternate" href="https://earth.nullschool.net/ko/about" hreflang="ko"/>
-    <link rel="alternate" href="https://earth.nullschool.net/pt/about" hreflang="pt"/>
-    <link rel="alternate" href="https://earth.nullschool.net/ru/about" hreflang="ru"/>
-    <link rel="alternate" href="https://earth.nullschool.net/zh-cn/about" hreflang="zh-Hans"/>
-    <link rel="alternate" href="https://earth.nullschool.net/zh-Hant/about" hreflang="zh-Hant"/>
-    <link rel="alternate" href="https://earth.nullschool.net/about" hreflang="x-default"/>
+    <link rel="canonical" href="./about.html"/>
+    <link rel="alternate" href="./about.html" hreflang="en"/>
+    <link rel="alternate" href="./about.html" hreflang="ko"/>
+    <link rel="alternate" href="./about.html" hreflang="x-default"/>
+
 
 
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-6SYP36R2F0"></script>
@@ -76,9 +43,8 @@
 
     }catch(e){console.error(e)}}();</script>
 
+
     <style>
-
-
         :root {
 
             --info-area-top:    env(safe-area-inset-top,    0px);
@@ -144,28 +110,28 @@
 
         @font-face {
             font-family: MPLUS1-base;
-            src: url("./fonts/MPLUS1-Regular-base~e56fa902.woff2");
+            src: url("./styles/fonts/MPLUS1-Regular-base~e56fa902.woff2");
             font-weight: 400;
             unicode-range: U+0,U+9-A,U+D,U+20-7E,U+A0-A1,U+AB,U+B0-B1,U+B4-B5,U+BA-BB,U+BD,U+C0-C1,U+C9,U+CD,U+D8,U+DA,U+E0-E4,U+E7-EA,U+ED-EE,U+F1,U+F3-F5,U+F8-FA,U+FD,U+10C-10D,U+10F,U+11B,U+11F,U+131,U+142,U+144,U+148,U+153,U+159,U+160-161,U+165,U+16F,U+17D-17E,U+192,U+2DD,U+2013-2014,U+2018-2019,U+201C-201D;
         }
 
         @font-face {
             font-family: MPLUS1-base;
-            src: url("./fonts/MPLUS1-SemiBold-base~bcdc726c.woff2");
+            src: url("./styles/fonts/MPLUS1-SemiBold-base~bcdc726c.woff2");
             font-weight: 600;
             unicode-range: U+0,U+9-A,U+D,U+20-7E,U+A0-A1,U+AB,U+B0-B1,U+B4-B5,U+BA-BB,U+BD,U+C0-C1,U+C9,U+CD,U+D8,U+DA,U+E0-E4,U+E7-EA,U+ED-EE,U+F1,U+F3-F5,U+F8-FA,U+FD,U+10C-10D,U+10F,U+11B,U+11F,U+131,U+142,U+144,U+148,U+153,U+159,U+160-161,U+165,U+16F,U+17D-17E,U+192,U+2DD,U+2013-2014,U+2018-2019,U+201C-201D;
         }
 
         @font-face {
             font-family: NotoSans-base;
-            src: url("./fonts/NotoSans-Regular-base~d68198ad.woff2");
+            src: url("./styles/fonts/NotoSans-Regular-base~d68198ad.woff2");
             font-weight: 400;
             unicode-range: U+0,U+9-A,U+D,U+20,U+A0,U+B2-B3,U+B9,U+394,U+39F,U+3B3-3B5,U+3B8,U+3BB,U+3C0-3C1,U+3C4,U+3C6,U+410-418,U+41A,U+41C-428,U+42D,U+42F-44F,U+451,U+901-903,U+905-90A,U+90F-911,U+913-918,U+91A-928,U+92A-930,U+932,U+935-939,U+93C,U+93E-943,U+947-949,U+94B-94D,U+964,U+2011,U+2032-2033,U+2070,U+2074-2079,U+207B;
         }
 
         @font-face {
             font-family: NotoSans-base;
-            src: url("./fonts/NotoSans-SemiBold-base~d85f0872.woff2");
+            src: url("./styles/fonts/NotoSans-SemiBold-base~d85f0872.woff2");
             font-weight: 600;
             unicode-range: U+0,U+9-A,U+D,U+20,U+A0,U+B2-B3,U+B9,U+394,U+39F,U+3B3-3B5,U+3B8,U+3BB,U+3C0-3C1,U+3C4,U+3C6,U+410-418,U+41A,U+41C-428,U+42D,U+42F-44F,U+451,U+901-903,U+905-90A,U+90F-911,U+913-918,U+91A-928,U+92A-930,U+932,U+935-939,U+93C,U+93E-943,U+947-949,U+94B-94D,U+964,U+2011,U+2032-2033,U+2070,U+2074-2079,U+207B;
         }
@@ -405,12 +371,15 @@
         }
 
     </style>
+
+
+
 </head>
 <body>
 <main>
     <a href="."><img id="cover" src="./banner.jpg" alt="earth banner image"/></a>
 
-    <h1><a href=".">nullschool earth</a></h1>
+    <h1><a href="./index_new.html">earth</a></h1>
 
     <p>a visualization of global weather conditions<br>forecast by supercomputers<br>updated every three hours</p>
     <p>ocean surface current estimates<br>updated every day</p>
@@ -418,52 +387,6 @@
     <p>ocean waves<br>updated every three hours</p>
     <p>aurora<br>updated every thirty minutes</p>
 
-    <h2>created by</h2>
-    <p>
-        <a href="https://www.linkedin.com/in/cambecc/">Cameron Beccario</a> -
-        <svg class="fa"><use href="#fa-bluesky"/></svg> <a href="https://bsky.app/profile/cambecc.nullschool.net">@cambecc.nullschool.net</a><br>
-        <a href="https://nullschool.net">Nullschool Technologies Inc.</a>
-    </p>
-
-    <h2>Community</h2>
-    <dl class="credit-roll">
-        <dt>
-            Newsletter
-            <svg class="fa"><use href="#fa-newspaper"/></svg>
-        </dt>
-        <dd>
-            <a href="https://news.nullschool.net/">news.nullschool.net</a>
-        </dd>
-        <dt>
-            Facebook
-            <svg class="fa"><use href="#fa-facebook"/></svg>
-        </dt>
-        <dd>
-            <a href="https://www.facebook.com/EarthWindMap">EarthWindMap</a>
-        </dd>
-        <dt>
-            YouTube
-            <svg class="fa"><use href="#fa-youtube"/></svg>
-        </dt>
-        <dd>
-            <a href="https://www.youtube.com/@nullschool-tech">@nullschool-tech</a>
-        </dd>
-        <dt>
-            Instagram
-            <svg class="fa"><use href="#fa-instagram"/></svg>
-        </dt>
-        <dd>
-            <a href="https://www.instagram.com/nullschool/">@nullschool</a>
-        </dd>
-    </dl>
-
-    <h2>feedback</h2>
-    <p>
-        <a href="https://forms.gle/vNZkFGTLnqq7HJQB7">provide feedback about this site</a>
-    </p>
-
-    <h2>inquiries</h2>
-    <p>contact <a href="mailto:inquiries@nullschool.net">inquiries@nullschool.net</a> for licensing or other questions</p>
 
     <h2>data sources</h2>
     <p>
@@ -622,7 +545,7 @@
             Prototype
         </dt>
         <dd>
-            <a href="https://air.nullschool.net">air.nullschool.net</a>
+            <a href="https://earth.nullschool.net">earth.nullschool.net</a>
         </dd>
     </dl>
 
@@ -931,222 +854,6 @@
         <dd>rotate right faster</dd>
     </dl>
 
-    <h2>translators</h2>
-    <p class="translator-roll">
-        <span>Александр Попов</span>
-        <span>Вячеслав Епиков</span>
-        <span>1599763839</span>
-        <span>1992pb</span>
-        <span>2451158917</span>
-        <span>피시</span>
-        <span>afropolakwot</span>
-        <span>agagey</span>
-        <span>Aleksander</span>
-        <span>Alexander Kirilov</span>
-        <span>Alexey Dmitriev</span>
-        <span>Alexey Korsakov</span>
-        <span>AlexOrlovets</span>
-        <span>Anderson Porto</span>
-        <span>Andre Lz</span>
-        <span>Andrea de Franco</span>
-        <span>Andrew Pedrini</span>
-        <span>Andrey Bagmanov</span>
-        <span>Antonpek</span>
-        <span>arquerogonza</span>
-        <span>Artur Wisniewski</span>
-        <span>ashawesoman</span>
-        <span>ashvin.j.sherathiya</span>
-        <span>astrostrong</span>
-        <span>asveruz</span>
-        <span>atom</span>
-        <span>Belore Stergann</span>
-        <span>bgij</span>
-        <span>bidulem3</span>
-        <span>Birg3r</span>
-        <span>Bohuslav Šín</span>
-        <span>Bram Versteeve</span>
-        <span>Bryan</span>
-        <span>carina.bringedal</span>
-        <span>carlofrc</span>
-        <span>Cassiel Bclamson</span>
-        <span>Ching-ping Yu</span>
-        <span>Christian Leroux</span>
-        <span>contact</span>
-        <span>cuxcoll</span>
-        <span>Daniel Bartsch</span>
-        <span>Daniel Isak Marinosson</span>
-        <span>Daniel Pawlowski</span>
-        <span>Daniel Rakoczy</span>
-        <span>danielruiz1636</span>
-        <span>Darlite</span>
-        <span>davalenciano98</span>
-        <span>Davide Carlier</span>
-        <span>Denat250</span>
-        <span>deus.05</span>
-        <span>Dimitris T. Papadimitriou</span>
-        <span>dlo.daniel</span>
-        <span>Dominic Douglas</span>
-        <span>dsantosgtm</span>
-        <span>dustyhofman</span>
-        <span>e</span>
-        <span>Eason Huang</span>
-        <span>egarpunov</span>
-        <span>elier.pila</span>
-        <span>Eric Kim</span>
-        <span>essaii32</span>
-        <span>estefilippini</span>
-        <span>fantasy_lcl</span>
-        <span>farrasoctara</span>
-        <span>Felipe Faria</span>
-        <span>florian-lerch</span>
-        <span>franci00</span>
-        <span>FranklinZhang</span>
-        <span>Frederik T. de Ridder</span>
-        <span>fthmiln</span>
-        <span>georg.loesel</span>
-        <span>gherlainfo</span>
-        <span>giacomo.gerosa</span>
-        <span>Gian Centeno</span>
-        <span>giospud</span>
-        <span>gonzalo.ag88</span>
-        <span>gporter.seadog</span>
-        <span>graceang</span>
-        <span>graham.rimmington</span>
-        <span>grol2901</span>
-        <span>Hebel</span>
-        <span>holgersson</span>
-        <span>Hyung Wook Jung</span>
-        <span>Ichiro Wang</span>
-        <span>Ignacio Sanz</span>
-        <span>iii1212</span>
-        <span>InfoSecOne</span>
-        <span>Jae Soo Park</span>
-        <span>Jiří Batelka</span>
-        <span>Joanna Rinne</span>
-        <span>Joao Correia</span>
-        <span>jocelot</span>
-        <span>Jomari Joseph Barrera</span>
-        <span>Jonathan Yang</span>
-        <span>Jose A. Frias Morales</span>
-        <span>juanpaexpedite</span>
-        <span>kai.s.mueller</span>
-        <span>Karol Sapiński</span>
-        <span>Kiyun Jeon</span>
-        <span>kjetil.hoiby</span>
-        <span>kty5663</span>
-        <span>ku5an2901</span>
-        <span>laurapaccini</span>
-        <span>leandro1212</span>
-        <span>leticia.tahnee</span>
-        <span>lretamal</span>
-        <span>Luboš Motl</span>
-        <span>marcello.carreira</span>
-        <span>marco.prosdocimo</span>
-        <span>Mark</span>
-        <span>markeletona</span>
-        <span>Markus Schley</span>
-        <span>Martine Bolzinger</span>
-        <span>Matt Tang</span>
-        <span>Mattia Raffa</span>
-        <span>mavilesilva</span>
-        <span>melfi</span>
-        <span>Melissa Ortiz Massó</span>
-        <span>Meow Wang</span>
-        <span>mgb</span>
-        <span>Michael Purer</span>
-        <span>Michael</span>
-        <span>Michel Rivero</span>
-        <span>mikami_1966.1118</span>
-        <span>mikele.fit95</span>
-        <span>Miquel Bayo Moreno</span>
-        <span>mir597</span>
-        <span>MirageF1AZ</span>
-        <span>Miroslaw Lisiak</span>
-        <span>Mohannad Alahmadi</span>
-        <span>m_strugale</span>
-        <span>nando</span>
-        <span>nunolava1998</span>
-        <span>Olivier</span>
-        <span>OLS-RU</span>
-        <span>Oğuzhan Arı</span>
-        <span>Paul Bachem</span>
-        <span>Paweł Kowalczyk</span>
-        <span>pdobrev</span>
-        <span>Personim Intaned</span>
-        <span>Philippe Jabet</span>
-        <span>Plamen Dobrev</span>
-        <span>ProffLex</span>
-        <span>P_A_N_D_A_M_A_N</span>
-        <span>Rafael Nonato Bassora</span>
-        <span>rajeshgodvani</span>
-        <span>RaskiPL</span>
-        <span>reyfran8</span>
-        <span>Riccardo Monfardini</span>
-        <span>robertrosalex</span>
-        <span>Roger Helman</span>
-        <span>Roller978</span>
-        <span>rosariainpo</span>
-        <span>Russel Schwartz</span>
-        <span>santiago.giraldoc</span>
-        <span>sapan021</span>
-        <span>sarogrom</span>
-        <span>Seongmin Park</span>
-        <span>september43</span>
-        <span>Seregalsv Serega</span>
-        <span>silverhaze030</span>
-        <span>Simone Dragoni</span>
-        <span>siudzin98</span>
-        <span>skyneon77</span>
-        <span>sombrasbaul</span>
-        <span>Somil Thesia</span>
-        <span>Stephen Flynn</span>
-        <span>Steven</span>
-        <span>SUGIMOTO Tatsuo</span>
-        <span>Sunny Miu</span>
-        <span>Tayseer M Alhibshi</span>
-        <span>Telmo John</span>
-        <span>tenderstart</span>
-        <span>thanhhuyenlth</span>
-        <span>Thomas Middelveld</span>
-        <span>Thorsten Schleicher</span>
-        <span>tigormal</span>
-        <span>tigra200sx</span>
-        <span>Tomasz Waligóra</span>
-        <span>torstenleibrich</span>
-        <span>tsuka tama</span>
-        <span>ulaszewski.bartosz</span>
-        <span>ultordima</span>
-        <span>Vasily Tarasenko</span>
-        <span>vhc1967</span>
-        <span>Vu Thuong</span>
-        <span>Víctor Velarde</span>
-        <span>wasted</span>
-        <span>webfreelance</span>
-        <span>Wonmin Jeong</span>
-        <span>wtlovergirl</span>
-        <span>xesmedic</span>
-        <span>xorpid</span>
-        <span>xrdeem</span>
-        <span>xsqz</span>
-        <span>潘柏綸</span>
-        <span>yaawwad</span>
-        <span>Yauhen Bahashou</span>
-        <span>youngjune4498</span>
-        <span>Youngmin Jeon</span>
-        <span>Yukun Chen</span>
-        <span>zackcaussy</span>
-        <span>Zulus</span>
-        <span>Οverlord</span>
-
-    </p>
-
-    <h2>citations</h2>
-    <a href="https://cleanet.org/resources/47829.html">
-        <img id="clean-logo" src="./clean-logo-v4.jpg" alt="Selected-by-CLEAN logo"/>
-    </a>
-    <p class="center text">
-        Selected for inclusion in the <a href="https://cleanet.org/clean/about/selected_by_CLEAN">Climate Literacy and Energy Awareness Network</a> (CLEAN) collection of educational resources.
-    </p>
 
     <h2>disclaimer</h2>
     <p>
@@ -1162,11 +869,10 @@
         Nullschool Technologies Inc. implies no guarantee of accuracy
     </p>
 
-    <p><a href="https://nullschool.net/privacy">privacy policy</a></p>
-
-    <p class="center">Copyright (c) 2026 Nullschool Technologies Inc.</p>
+    <p class="center">Copyright (c) 2026 Un7 Technologies Inc.</p>
 
 </main>
+
 <div hidden>
 
     <svg>
