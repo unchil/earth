@@ -1,7 +1,7 @@
 earth
 =====
 
-### un7 comment: 
+### un7 comment: Project Origin & Configuration Note
 ***"earth" can be found on GitHub at https://github.com/cambecc/earth. This is a copied project.***
 
 **NOTE: the location of `dev-server.js` has changed from `{repository}/server/` to `{repository}/`**
@@ -80,13 +80,14 @@ utility:
     cp current-wind-surface-level-gfs-1.0.json <earth-git-repository>/public/data/weather/current
 
 
-### un7 comment: 
-***service call url***
+### un7 comment: Updated NOMADS GFS Download Service URL
 
     YYYYMMDD=<a date, for example: 20261027>
     curl "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl?file=gfs.t00z.pgrb2.1p00.f000&lev_10_m_above_ground=on&var_UGRD=on&var_VGRD=on&dir=%2Fgfs.${YYYYMMDD}%2F00%2Fatmos" -o gfs.t00z.pgrb2.1p00.f000
 
-#### 1. Available Ranges and Values
+### un7 comment: GFS Data Specification & `grib2json` Parsing Guide
+
+#### 1. Available Ranges and Values (Earth Height Layers)
 
 In `index.html` and `earth.js`, the buttons under the **Height** menu (`class="surface"`) define the allowed combinations:
 
@@ -102,10 +103,35 @@ In `index.html` and `earth.js`, the buttons under the **Height** menu (`class="s
 | `"isobaric"` | `"10hPa"` | ~26,500 m | Stratosphere |
 | `undefined` | `undefined` | Entire atmospheric column | Integrated scalar overlays (`TPW`, `TCW`, `MSLP`) |
 
-### un7 comment: 
-***grib2json parsing options***
+---
 
-#### 1. GFS 데이터 계층(Surface / Level)별 `grib2json` 파싱 옵션 매핑 표
+#### 2. `--filter.parameter` (`--fp`) 정의 및 주요 기상 변수 매핑
+
+- **WMO GRIB2 계층 구조**:
+    - `Discipline` (`--fd`): 대분류 (예: `0` = 기상학적 프로덕트)
+    - `Category` (`--fc`): 기상 카테고리 (예: `0` = 온도, `1` = 수분, `2` = 운동량, `3` = 질량, `6` = 구름)
+    - `Parameter` (`--fp`): 카테고리 내 세부 물리량 번호 (또는 특수 키워드 `"wind"`)
+
+- **특수 키워드 `"wind"`**:
+    - `--fp wind`: 바람 벡터 연산에 필요한 `UGRD`(동서 성분, Category 2 / Parameter 2)와 `VGRD`(남북 성분, Category 2 / Parameter 3)를 한 번에 동시 추출합니다.
+
+- **주요 기상 변수 파라미터 코드 매핑**:
+
+| 카테고리 (`--fc`) | 파라미터 (`--fp`) | 변수명 | 설명 | `earth` 레이어 매핑 |
+|:---|:---|:---|:---|:---|
+| **2 (Momentum)** | `wind` *(or `2`, `3`)* | `UGRD` & `VGRD` | U/V 풍속 벡터 성분 (m/s) | 바람 벡터 (`wind`) |
+| **0 (Temperature)** | `0` | `TMP` | 기온 (Temperature, K) | 기온 (`temp`) |
+| **0 (Temperature)** | `7` | `DPT` | 이슬점 온도 (Dew Point, K) | 이슬점 |
+| **1 (Moisture)** | `1` | `RH` | 상대습도 (Relative Humidity, %) | 상대습도 (`relative_humidity`) |
+| **1 (Moisture)** | `54` | `PWAT` | 가강수량 (Precipitable Water, $\text{kg/m}^2$) | 총 가강수량 (`total_precipitable_water`) |
+| **6 (Cloud)** | `6` | `CWAT` | 구름수량 (Cloud Water, $\text{kg/m}^2$) | 총 구름수량 (`total_cloud_water`) |
+| **3 (Mass)** | `1` / `192` | `PRMSL` | 해면기압 (Pressure at MSL, Pa) | 해면기압 (`mean_sea_level_pressure`) |
+| **7 (Stability)** | `6` | `CAPE` | 대기불안정도 (CAPE, J/kg) | 대기 대류 유효 전위 에너지 |
+
+
+
+
+#### 3. GFS 데이터 계층(Surface / Level)별 `grib2json` 파싱 옵션 매핑 표
 
 | `surface` | `level` | 고도 / 기압 | 기상학적 의미 | `grib2json` 필터 옵션 (`--fs`, `--fv`, `--fp`) | 생성 파일명 (Wind 기준 예시) |
 |:---|:---|:---|:---|:---|:---|
@@ -121,7 +147,7 @@ In `index.html` and `earth.js`, the buttons under the **Height** menu (`class="s
 
 ---
 
-#### 2. `grib2json` 주요 옵션 상세 설명
+#### 4. `grib2json` 주요 옵션 상세 설명
 
 - **공통 필수 플래그**:
   - `-d` (`--data`): 그리드 배열 데이터(`"data": [...]`)를 출력에 포함합니다 (시각화 연산 필수).
@@ -150,7 +176,7 @@ In `index.html` and `earth.js`, the buttons under the **Height** menu (`class="s
 
 ---
 
-#### 3. 대표 변환 명령어 예시
+#### 5. 대표 변환 명령어 예시
 
 ```bash
 # 1. 지표 바람 (Surface Wind, 10m above ground)
@@ -165,6 +191,8 @@ grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 85000 -o 0000-temp-isobaric-850hP
 # 4. 전체 대기 가강수량 (Total Precipitable Water)
 grib2json -d -n -c --fc 1 --fp 54 --fs 200 --fv 0 -o 0000-total_precipitable_water-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
 ```
+
+---
 
 
 
