@@ -35,7 +35,7 @@ DIR="/${LATEST_DIR}/${LATEST_CYCLE}/atmos"
 PARAM="var_UGRD=on&var_VGRD=on&lev_10_m_above_ground=on&lev_1000_mb=on&lev_850_mb=on&lev_700_mb=on&lev_500_mb=on&lev_250_mb=on&lev_70_mb=on&lev_10_mb=on&var_PRMSL=on&var_RH=on&var_TCDC=on&var_TMP=on"
 
 # 0시간부터 72시간까지 3시간 간격 (000, 003, ..., 072)
-for i in {0..2..3}; do
+for i in {0..72..3}; do
   # 3자리 숫자로 포맷팅 (예: 0 -> 000, 3 -> 003, 72 -> 072)
   f_num=$(printf "%03d" $i)
 
