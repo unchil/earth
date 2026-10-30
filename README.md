@@ -82,8 +82,9 @@ utility:
 
 ### un7 comment: Updated NOMADS GFS Download Service URL
 
-    YYYYMMDD=<a date, for example: 20261027>
-    curl "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl?file=gfs.t00z.pgrb2.1p00.f000&lev_10_m_above_ground=on&var_UGRD=on&var_VGRD=on&dir=%2Fgfs.${YYYYMMDD}%2F00%2Fatmos" -o gfs.t00z.pgrb2.1p00.f000
+    YYYYMMDD=<a date, for example: 20261029>, HH=<a hour, for example: 18>
+    curl "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl?dir=%2Fgfs.${YYYYMMDD}%2F${HH}%2Fatmos&file=gfs.t${${HH}}z.pgrb2.1p00.f000&var_UGRD=on&var_VGRD=on&lev_10_m_above_ground=on&lev_1000_mb=on&lev_850_mb=on&lev_700_mb=on&lev_500_mb=on&lev_250_mb=on&lev_70_mb=on&lev_10_mb=on&var_PRMSL=on&var_RH=on&var_TCDC=on&var_TMP=on" -o gfs.t${HH}z.pgrb2.1p00.f000 
+    curl "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?dir=%2Fgfs.${YYYYMMDD}%2F${HH}%2Fwave%2Fgridded&file=gfswave.t${HH}z.global.0p16.f000.grib2&var_UGRD=on&var_VGRD=on&lev_surface=on&var_WVDIR=on&var_WVHGT=on&var_WVPER=on" -o gfswave.t${HH}z.global.0p16.f000
 
 ### un7 comment: GFS Data Specification & `grib2json` Parsing Guide
 
@@ -178,7 +179,7 @@ In `index.html` and `earth.js`, the buttons under the **Height** menu (`class="s
 
 #### 5. 대표 변환 명령어 예시
 
-```bash
+```zsh
 # 1. 지표 바람 (Surface Wind, 10m above ground)
 grib2json -d -n -c --fp wind --fs 103 --fv 10 -o 0000-wind-surface-level-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
 
@@ -188,8 +189,11 @@ grib2json -d -n -c --fp wind --fs 100 --fv 25000 -o 0000-wind-isobaric-250hPa-gf
 # 3. 850 hPa 등압면 기온 (Temperature)
 grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 85000 -o 0000-temp-isobaric-850hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
 
-# 4. 전체 대기 가강수량 (Total Precipitable Water)
-grib2json -d -n -c --fc 1 --fp 54 --fs 200 --fv 0 -o 0000-total_precipitable_water-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
+# 4. 상대습도 (Relative Humidity, %)
+grib2json -d -n -c --fc 1 --fp 1  -o 0000-rh-isobaric-1000hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
+
+# 5. 지구 전체의 파고(Significant Wave Height), 파향, 주기의 분포
+grib2json -d -o output.json gfswave.t18z.global.0p16.f000
 ```
 
 ---
