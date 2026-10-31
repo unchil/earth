@@ -104,8 +104,7 @@ for (( i = 0; i <= MAX_HOUR; i += 3 )); do
   # 서버가 GRIB2 대신 "data file is not present" HTML 을 돌려준 경우 저장하지 않고 스킵
   if grep -qa ">data file is not present" "${TMP_FILE}"; then
     # 최초 발견 시: 하루 이전 날짜의 마지막 사이클로 전환 후 f000 부터 다시 다운로드
-    if (( FALLBACK_DONE == 0 )); then
-      FALLBACK_DONE=1
+    if (( i == 3 )); then
       echo "-> ${FILENAME}: 서버에 데이터 파일이 없습니다. 하루 이전 날짜의 마지막 사이클로 전환합니다."
 
       # 하루 이전 날짜 계산 (macOS / BSD date 와 Linux GNU date 분기)
@@ -127,15 +126,16 @@ for (( i = 0; i <= MAX_HOUR; i += 3 )); do
       rm -rf "${DIR_DOWNLOAD:?}"/*(N)
 
       # 다음 반복에서 i += 3 이 적용되어 i = 0 (f000) 부터 다시 시작
-      i=-3
+      i=0
       continue
     fi
+
     echo "-> ${FILENAME}: 서버에 데이터 파일이 아직 없습니다. 스킵합니다."
+    rm -f "${TMP_FILE}"
     continue
   fi
 
   mv "${TMP_FILE}" "${DIR_DOWNLOAD}/${FILENAME}"
-
 done
 
 
