@@ -1,5 +1,19 @@
 #!/bin/zsh
 
+
+# 사용법: ./atmosCollector.sh [최대예보시간(기본 72)] [간격(기본 3)]
+# 예) ./atmosCollector.sh          -> 0~72시간, 3시간 간격
+#     ./atmosCollector.sh 120     -> 0~120시간, 3시간 간격
+MAX_HOUR="${1:-72}"
+
+if [[ ! "$MAX_HOUR" =~ ^[0-9]+$ ]]; then
+    echo "사용법: $0 [최대예보시간(정수, 기본 72)]"
+    exit 1
+fi
+
+echo "=== 입력된 최대예보시간:${MAX_HOUR} ==="
+
+
 # NOMADS GFS 1.0도 기본 URL
 BASE_URL="https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl"
 DIR_DOWNLOAD="./download"
@@ -74,7 +88,7 @@ rm -rf "${DIR_DOWNLOAD:?}"/*(N)
 echo "-> ${DIR_DOWNLOAD} 디렉터리를 비웠습니다."
 
 # 0시간부터 72시간까지 3시간 간격 (000, 003, ..., 072)
-for i in {0..72..3}; do
+for (( i = 0; i <= MAX_HOUR; i += 3 )); do
   # 3자리 숫자로 포맷팅 (예: 0 -> 000, 3 -> 003, 72 -> 072)
   f_num=$(printf "%03d" $i)
 
@@ -84,7 +98,44 @@ for i in {0..72..3}; do
   DOWNLOAD_URL="${BASE_URL}?file=${FILENAME}&dir=${DIR}&${PARAM}"
 
   echo "Downloading $FILENAME..."
-  curl "$DOWNLOAD_URL" -o "${DIR_DOWNLOAD}/${FILENAME}"
+  TMP_FILE="${DIR_DOWNLOAD}/${FILENAME}.tmp"
+  curl -s "$DOWNLOAD_URL" -o "${TMP_FILE}"
+
+  # 서버가 GRIB2 대신 "data file is not present" HTML 을 돌려준 경우 저장하지 않고 스킵
+  if grep -qa ">data file is not present" "${TMP_FILE}"; then
+    # 최초 발견 시: 하루 이전 날짜의 마지막 사이클로 전환 후 f000 부터 다시 다운로드
+    if (( FALLBACK_DONE == 0 )); then
+      FALLBACK_DONE=1
+      echo "-> ${FILENAME}: 서버에 데이터 파일이 없습니다. 하루 이전 날짜의 마지막 사이클로 전환합니다."
+
+      # 하루 이전 날짜 계산 (macOS / BSD date 와 Linux GNU date 분기)
+      if date -v+1d >/dev/null 2>&1; then
+        DATE=$(date -u -j -v-1d -f "%Y%m%d" "${DATE}" +"%Y%m%d")
+      else
+        DATE=$(date -u -d "${DATE} -1 day" +"%Y%m%d")
+      fi
+      LATEST_DIR="gfs.${DATE}"
+
+      # 이전 날짜 폴더 내의 마지막 사이클 추출 (실패 시 18)
+      LATEST_CYCLE=$( curl -s "${BASE_URL}?dir=/${LATEST_DIR}" | grep -oE '>[0-9]{2}</a>' | grep -oE '[0-9]{2}' | sort -n | tail -n 1 )
+      LATEST_CYCLE="${LATEST_CYCLE:-18}"
+      DIR="/${LATEST_DIR}/${LATEST_CYCLE}/atmos"
+
+      echo "-> 전환된 날짜: ${DATE} (${LATEST_DIR}), 사이클: ${LATEST_CYCLE}"
+
+      # 이전 사이클로 받은 파일이 섞이지 않도록 DIR_DOWNLOAD 를 다시 비움
+      rm -rf "${DIR_DOWNLOAD:?}"/*(N)
+
+      # 다음 반복에서 i += 3 이 적용되어 i = 0 (f000) 부터 다시 시작
+      i=-3
+      continue
+    fi
+    echo "-> ${FILENAME}: 서버에 데이터 파일이 아직 없습니다. 스킵합니다."
+    continue
+  fi
+
+  mv "${TMP_FILE}" "${DIR_DOWNLOAD}/${FILENAME}"
+
 done
 
 
@@ -107,7 +158,14 @@ LAYERS=(
 
 echo "=== grib2json 디코딩 시작 ==="
 
-for src_file in "${DIR_DOWNLOAD}"/gfs.t*z.pgrb2.1p00.f*; do
+# (N) : 매칭되는 파일이 없으면 에러 대신 빈 배열이 됨
+SRC_FILES=( "${DIR_DOWNLOAD}"/gfs.t*z.pgrb2.1p00.f*(N) )
+if (( ${#SRC_FILES} == 0 )); then
+    echo "정보: ${DIR_DOWNLOAD} 에 디코딩할 GRIB2 파일이 없습니다. 종료합니다."
+    exit 1
+fi
+
+for src_file in "${SRC_FILES[@]}"; do
     [ -f "${src_file}" ] || continue
     filename=$(basename "${src_file}")
 
