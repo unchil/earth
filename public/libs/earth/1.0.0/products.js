@@ -343,7 +343,7 @@ var products = function() {
                         name: {en: "Total Cloud Water", ja: "雲水量"},
                         qualifier: ""
                     }),
-                    paths: [gfs1p0degPath(attr, "total_cloud_water")],
+                    paths: [gfs1p0degPath(attr, "total_cloud_water", attr.surface, attr.level)],
                     date: gfsDate(attr),
                     builder: function(file) {
                         var record = file[0], data = record.data;

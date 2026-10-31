@@ -26,6 +26,7 @@ VARIABLES=(
     "RH"
     "TCDC"
     "TMP"
+    "CWAT"
 )
 
 # 다운로드할 레벨 목록 (추가/삭제 시 이 배열만 수정) -> lev_<이름>=on
@@ -38,6 +39,7 @@ LEVELS=(
     "250_mb"
     "70_mb"
     "10_mb"
+    "surface"
 )
 
 echo "=== NOMADS 서버에서 최신 날짜 및 사이클 정보 확인 중 ==="
@@ -160,6 +162,7 @@ PARAMETERS=(
     "2:Momentum:wind:wind"
     "0:Temperature:0:temp"
     "1:Moisture:1:relative_humidity"
+    "6:Cloud:1:total_cloud_water"
 )
 
 
