@@ -93,8 +93,9 @@ for src_file in "${DIR_DOWNLOAD}"/gfs.t*z.pgrb2.1p00.f*; do
     target_dir="${DIR_ATMOS}/${target_date_dir}"
     mkdir -p "${target_dir}"
 
-    # 저장파일명의 첫 번째 '-' 앞 접두사 (파일명 끝 3자리 앞에 0 추가: 0000, 0003, ..., 0072)
-    prefix="0${f_num}"
+
+    # 저장파일명의 첫 번째 '-' 앞 접두사: LATEST_CYCLE 기준 offset_hours를 더한 UTC 시각(HHMM)
+    prefix=$(date -u -j -v+"${offset_hours}"H -f "%H%M" "${LATEST_CYCLE}00" +"%H%M")
 
     for layer in "${LAYERS[@]}"; do
         IFS=':' read -r SURFACE LEVEL FS FV <<< "$layer"
@@ -105,7 +106,7 @@ for src_file in "${DIR_DOWNLOAD}"/gfs.t*z.pgrb2.1p00.f*; do
         grib2json -d -n -c --fp wind --fs "${FS}" --fv "${FV}" -o "${target_file_path}" "${src_file}"
 
         # prefix가 "0000"일 경우 DIR_ATMOS/current 에도 current-wind- 파일로 복사/추가
-        if [ "${prefix}" = "0000" ]; then
+        if [ "${prefix}" = "${LATEST_CYCLE}00" ]; then
             current_dir="${DIR_ATMOS}/current"
             mkdir -p "${current_dir}"
             cp "${target_file_path}" "${current_dir}/current-wind-${SURFACE}-${LEVEL}-gfs-1.0.json"
