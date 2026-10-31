@@ -156,6 +156,14 @@ LAYERS=(
     "isobaric:10hPa:100:1000"
 )
 
+PARAMETERS=(
+    "2:Momentum:wind:wind"
+    "0:Temperature:0:temp"
+    "1:Moisture:1:relative_humidity"
+)
+
+
+
 echo "=== grib2json 디코딩 시작 ==="
 
 # (N) : 매칭되는 파일이 없으면 에러 대신 빈 배열이 됨
@@ -195,19 +203,28 @@ for src_file in "${SRC_FILES[@]}"; do
 
     for layer in "${LAYERS[@]}"; do
         IFS=':' read -r SURFACE LEVEL FS FV <<< "$layer"
-        target_filename="${prefix}-wind-${SURFACE}-${LEVEL}-gfs-1.0.json"
-        target_file_path="${target_dir}/${target_filename}"
 
-        echo "Decoding ${filename} -> ${target_date_dir}/${target_filename} (surface: ${FS}, value: ${FV})..."
-        grib2json -d -n -c --fp wind --fs "${FS}" --fv "${FV}" -o "${target_file_path}" "${src_file}"
+       for parameter in "${PARAMETERS[@]}"; do
+          IFS=':' read -r FC FC_NAME FP VAR <<< "$parameter"
 
-        # f_num "000"일 경우 DIR_ATMOS/current 에도 current-wind- 파일로 복사/추가
-        if [ "${f_num}" = "000" ]; then
-            current_dir="${DIR_ATMOS}/current"
-            mkdir -p "${current_dir}"
-            cp "${target_file_path}" "${current_dir}/current-wind-${SURFACE}-${LEVEL}-gfs-1.0.json"
-        fi
+          target_filename="${prefix}-${VAR}-${SURFACE}-${LEVEL}-gfs-1.0.json"
+          target_file_path="${target_dir}/${target_filename}"
+
+          echo "Decoding ${filename} -> ${target_date_dir}/${target_filename} (surface: ${FS}, value: ${FV})..."
+          grib2json -d -n -c --fc "${FC}" --fp "${FP}" --fs "${FS}" --fv "${FV}" -o "${target_file_path}" "${src_file}"
+
+          # f_num "000"일 경우 DIR_ATMOS/current 에도 current-wind- 파일로 복사/추가
+          if [ "${f_num}" = "000" ]; then
+              current_dir="${DIR_ATMOS}/current"
+              mkdir -p "${current_dir}"
+              cp "${target_file_path}" "${current_dir}/current-${VAR}-${SURFACE}-${LEVEL}-gfs-1.0.json"
+          fi
+
+       done
+
     done
+
+
 done
 
 echo "=== 모든 데이터 디코딩 완료 ==="
