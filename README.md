@@ -182,17 +182,33 @@ In `index.html` and `earth.js`, the buttons under the **Height** menu (`class="s
 ```zsh
 # 1. 지표 바람 (Surface Wind, 10m above ground)
 grib2json -d -n -c --fp wind --fs 103 --fv 10 -o 0000-wind-surface-level-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fp wind --fs 100 --fv 100000 -o current-wind-isobaric-1000hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fp wind --fs 100 --fv 85000 -o current-wind-isobaric-850hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fp wind --fs 100 --fv 70000 -o current-wind-isobaric-700hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fp wind --fs 100 --fv 50000 -o current-wind-isobaric-500hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fp wind --fs 100 --fv 25000 -o current-wind-isobaric-250hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fp wind --fs 100 --fv 7000 -o current-wind-isobaric-70hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fp wind --fs 100 --fv 1000 -o current-wind-isobaric-10hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
 
-# 2. 250 hPa 등압면 바람 (Jet Stream)
-grib2json -d -n -c --fp wind --fs 100 --fv 25000 -o 0000-wind-isobaric-250hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
+# 2. 상대습도 (Relative Humidity, %)
+grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 100000 -o current-relative_humidity-isobaric-1000hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 85000 -o current-relative_humidity-isobaric-850hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 70000 -o current-relative_humidity-isobaric-700hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 50000 -o current-relative_humidity-isobaric-500hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 25000 -o current-relative_humidity-isobaric-250hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 7000 -o current-relative_humidity-isobaric-70hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 1000 -o current-relative_humidity-isobaric-10hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
 
-# 3. 850 hPa 등압면 기온 (Temperature)
-grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 85000 -o 0000-temp-isobaric-850hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
+# 3. 등압면 기온 (Temperature)
+grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 100000 -o current-temp-isobaric-1000hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 85000 -o current-temp-isobaric-850hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 70000 -o current-temp-isobaric-700hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 50000 -o current-temp-isobaric-500hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 25000 -o current-temp-isobaric-250hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 7000 -o current-temp-isobaric-70hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
+grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 1000 -o current-temp-isobaric-10hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
 
-# 4. 상대습도 (Relative Humidity, %)
-grib2json -d -n -c --fc 1 --fp 1  -o 0000-rh-isobaric-1000hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
-
-# 5. 지구 전체의 파고(Significant Wave Height), 파향, 주기의 분포
+# 4. 지구 전체의 파고(Significant Wave Height), 파향, 주기의 분포
 grib2json -d -o output.json gfswave.t18z.global.0p16.f000
 ```
 
