@@ -4,6 +4,28 @@
 BASE_URL="https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl"
 DIR_DOWNLOAD="./download"
 
+# 다운로드할 변수 목록 (추가/삭제 시 이 배열만 수정) -> var_<이름>=on
+VARIABLES=(
+    "UGRD"
+    "VGRD"
+    "PRMSL"
+    "RH"
+    "TCDC"
+    "TMP"
+)
+
+# 다운로드할 레벨 목록 (추가/삭제 시 이 배열만 수정) -> lev_<이름>=on
+LEVELS=(
+    "10_m_above_ground"
+    "1000_mb"
+    "850_mb"
+    "700_mb"
+    "500_mb"
+    "250_mb"
+    "70_mb"
+    "10_mb"
+)
+
 echo "=== NOMADS 서버에서 최신 날짜 및 사이클 정보 확인 중 ==="
 
 # 1. 페이지 HTML을 가져와서 가장 최근 날짜(예: gfs.20261030)와 가장 마지막 사이클 추출
@@ -33,7 +55,23 @@ echo "=== 다운로드 시작 ==="
 # 기본 URL 및 디렉터리 구조 설정
 
 DIR="/${LATEST_DIR}/${LATEST_CYCLE}/atmos"
-PARAM="var_UGRD=on&var_VGRD=on&lev_10_m_above_ground=on&lev_1000_mb=on&lev_850_mb=on&lev_700_mb=on&lev_500_mb=on&lev_250_mb=on&lev_70_mb=on&lev_10_mb=on&var_PRMSL=on&var_RH=on&var_TCDC=on&var_TMP=on"
+
+# VARIABLES, LEVELS 배열로부터 쿼리 파라미터 생성
+PARAM=""
+for v in "${VARIABLES[@]}"; do
+    PARAM+="&var_${v}=on"
+done
+for l in "${LEVELS[@]}"; do
+    PARAM+="&lev_${l}=on"
+done
+PARAM="${PARAM#&}"
+
+# 다운로드 전 DIR_DOWNLOAD 비우기 (디렉터리가 없으면 생성)
+# ${DIR_DOWNLOAD:?} : 변수가 비어 있으면 중단하여 "/*" 삭제 사고 방지
+# (N) : zsh glob 한정자, 비어 있는 디렉터리일 때 "no matches found" 에러 방지
+mkdir -p "${DIR_DOWNLOAD}"
+rm -rf "${DIR_DOWNLOAD:?}"/*(N)
+echo "-> ${DIR_DOWNLOAD} 디렉터리를 비웠습니다."
 
 # 0시간부터 72시간까지 3시간 간격 (000, 003, ..., 072)
 for i in {0..72..3}; do
