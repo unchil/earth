@@ -4,7 +4,7 @@
 # 사용법: ./atmosCollector.sh [최대예보시간(기본 72)] [간격(기본 3)]
 # 예) ./atmosCollector.sh          -> 0~72시간, 3시간 간격
 #     ./atmosCollector.sh 120     -> 0~120시간, 3시간 간격
-MAX_HOUR="${1:-72}"
+MAX_HOUR="${1:-12}"
 
 if [[ ! "$MAX_HOUR" =~ ^[0-9]+$ ]]; then
     echo "사용법: $0 [최대예보시간(정수, 기본 72)]"
@@ -18,28 +18,24 @@ echo "=== 입력된 최대예보시간:${MAX_HOUR} ==="
 BASE_URL="https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl"
 DIR_DOWNLOAD="./download"
 
+
 # 다운로드할 변수 목록 (추가/삭제 시 이 배열만 수정) -> var_<이름>=on
 VARIABLES=(
     "UGRD"
     "VGRD"
-    "PRMSL"
-    "RH"
-    "TCDC"
     "TMP"
-    "CWAT"
+    "RH"
 )
 
 # 다운로드할 레벨 목록 (추가/삭제 시 이 배열만 수정) -> lev_<이름>=on
 LEVELS=(
-    "10_m_above_ground"
-    "1000_mb"
-    "850_mb"
-    "700_mb"
-    "500_mb"
-    "250_mb"
-    "70_mb"
-    "10_mb"
-    "surface"
+  "1000_mb"
+  "850_mb"
+  "700_mb"
+  "500_mb"
+  "250_mb"
+  "70_mb"
+  "10_mb"
 )
 
 echo "=== NOMADS 서버에서 최신 날짜 및 사이클 정보 확인 중 ==="
@@ -148,7 +144,6 @@ DIR_ATMOS="./weather"
 
 # Available Ranges and Values: (surface, level, filter_surface, filter_value)
 LAYERS=(
-    "surface:level:103:10"
     "isobaric:1000hPa:100:100000"
     "isobaric:850hPa:100:85000"
     "isobaric:700hPa:100:70000"
@@ -160,11 +155,9 @@ LAYERS=(
 
 PARAMETERS=(
     "2:Momentum:wind:wind"
-    "0:Temperature:0:temp"
+    "0:Temperature:0:temperature"
     "1:Moisture:1:relative_humidity"
-    "6:Cloud:1:total_cloud_water"
 )
-
 
 
 echo "=== grib2json 디코딩 시작 ==="
@@ -216,11 +209,19 @@ for src_file in "${SRC_FILES[@]}"; do
           echo "Decoding ${filename} -> ${target_date_dir}/${target_filename} (surface: ${FS}, value: ${FV})..."
           grib2json -d -n -c --fc "${FC}" --fp "${FP}" --fs "${FS}" --fv "${FV}" -o "${target_file_path}" "${src_file}"
 
+          if [ "${LEVEL}" = "1000hPa" ]; then
+            cp "${target_file_path}" "${target_dir}/${prefix}-${VAR}-surface-level-gfs-1.0.json"
+          fi
+
           # f_num "000"일 경우 DIR_ATMOS/current 에도 current-wind- 파일로 복사/추가
           if [ "${f_num}" = "000" ]; then
               current_dir="${DIR_ATMOS}/current"
               mkdir -p "${current_dir}"
               cp "${target_file_path}" "${current_dir}/current-${VAR}-${SURFACE}-${LEVEL}-gfs-1.0.json"
+
+              if [ "${LEVEL}" = "1000hPa" ]; then
+                cp "${target_file_path}" "${current_dir}/current-${VAR}-surface-level-gfs-1.0.json"
+              fi
           fi
 
        done

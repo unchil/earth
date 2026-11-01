@@ -158,7 +158,7 @@ var products = function() {
                         name: {en: "Temp", ja: "気温"},
                         qualifier: {en: " @ " + describeSurface(attr), ja: " @ " + describeSurfaceJa(attr)}
                     }),
-                    paths: [gfs1p0degPath(attr, "temp", attr.surface, attr.level)],
+                    paths: [gfs1p0degPath(attr, "temperature", attr.surface, attr.level)],
                     date: gfsDate(attr),
                     builder: function(file) {
                         var record = file[0], data = record.data;
