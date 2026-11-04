@@ -27,7 +27,7 @@ def main():
     print(f"File currently being worked on:[{base_name}]")
 
     with xr.open_dataset(file_path) as ds:
-        mt_array = ds['MT'][:].values
+        mt_array = ds['MT'].values
         # 1. 원본 2D 곡선 격자의 위경도 및 유속 데이터 추출 (첫 번째 시간, 표층 기준)
         if  args.mt_index >= 0 & args.mt_index < mt_array.size:
             print(f"[{ mt_idx + 1 }/{mt_array.size}][{mt_array[mt_idx]}] MT 시간대 처리 중...")
@@ -72,13 +72,13 @@ def main():
                     "disciplineName": "Oceanographic products",
                     "center": -3,
                     "centerName": "Earth & Space Research",
-                    "refTime": mt_array[0],
+                    "refTime": str(mt_array[0]),
                     "parameterCategory": 1,
                     "parameterCategoryName": "Currents",
                     "parameterNumber": 2,
                     "parameterNumberName": "U_component_of_current",
                     "parameterUnit": "m.s-1",
-                    "forecastTime": mt_array[mt_idx],
+                    "forecastTime": str(mt_array[mt_idx]),
                     "surface1Type": 160,
                     "surface1TypeName": "Depth below sea level",
                     "surface1Value": 0,
@@ -100,13 +100,13 @@ def main():
                     "disciplineName": "Oceanographic products",
                     "center": -3,
                     "centerName": "Earth & Space Research",
-                    "refTime": mt_array[0],
+                    "refTime": str(mt_array[0]),
                     "parameterCategory": 1,
                     "parameterCategoryName": "Currents",
                     "parameterNumber": 3,
                     "parameterNumberName": "V_component_of_current",
                     "parameterUnit": "m.s-1",
-                    "forecastTime": mt_array[mt_idx],
+                    "forecastTime": str(mt_array[mt_idx]),
                     "surface1Type": 160,
                     "surface1TypeName": "Depth below sea level",
                     "surface1Value": 0,

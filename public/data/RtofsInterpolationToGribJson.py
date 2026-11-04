@@ -15,7 +15,7 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
     print(f"파일 처리 시작: [{base_name}]")
 
     with xr.open_dataset(file_path) as ds:
-        mt_array = ds['MT'][:].values
+        mt_array = ds['MT'].values
 
         # 1. 공통 위경도 2D 격자 데이터 추출 및 평탄화
         lat_2d = ds['Latitude'].values.flatten()
@@ -178,7 +178,7 @@ def main():
 
         try:
             process_file_with_reused_grid(
-                file_path, args.mt_indices, grid_lon, grid_lat, nx, ny,
+                file_path, mt_indices, grid_lon, grid_lat, nx, ny,
                 target_lons, target_lats, args.output_dir
             )
         except Exception as e:
