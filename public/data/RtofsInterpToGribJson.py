@@ -292,7 +292,7 @@ if __name__ == "__main__":
     main()
 
 """
-python RtofsInterpolationToGribJson.py \
+python RtofsInterpToGribJson.py \
 --files ./test/file1.nc ./test/file2.nc ./test/file3.nc \
 --mt_range 0 8 --output_dir ./oscar
 """
