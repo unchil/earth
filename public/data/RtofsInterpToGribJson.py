@@ -39,8 +39,14 @@ def process_file_with_reused_grid(
                 raise ValueError(f"인덱스 {mt_idx}는 범위를 벗어났습니다. (최대 인덱스: {mt_array.size - 1}) --mt_range 를 다시 설정해 주세요.")
 
         # 격자 데이터 추출 및 평탄화 시간
-        lat_2d = ds['Latitude'].values.flatten()
-        lon_2d = ds['Longitude'].values.flatten()
+        lat_2d = ds['Latitude'].compute().values.flatten()
+
+        # [수정] 경도 값이 360도를 초과하는 경우 Modulo 연산으로 정규화 적용 후 values 추출
+        lon_2d = ds['Longitude'].compute()
+        lon_normalized = xr.where(
+            lon_2d >= 360, lon_2d % 360, lon_2d
+        )
+        lon_2d = lon_normalized.values.flatten()
 
         # 고정된 삼각화 격자 구조(Points) 생성을 위해 첫 번째 유효 인덱스 샘플링
         first_valid_idx = 0
