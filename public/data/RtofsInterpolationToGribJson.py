@@ -36,27 +36,22 @@ def process_file_with_reused_grid(
             if mt_idx < 0 or mt_idx >= mt_array.size:
                 raise ValueError(f"인덱스 {mt_idx}는 범위를 벗어났습니다. (최대 인덱스: {mt_array.size - 1}) --mt_range 를 다시 설정해 주세요.")
 
-        # [측정 1] 격자 데이터 추출 및 평탄화 시간
-        t0 = time.time()
+        # 격자 데이터 추출 및 평탄화 시간
         lat_2d = ds['Latitude'].values.flatten()
         lon_2d = ds['Longitude'].values.flatten()
-        print(f"  [벤치마크] 위경도 2D 격자 평탄화 소요 시간: {time.time() - t0:.4f}초")
 
-        # [측정 2] 고정된 삼각화 격자 구조(Points) 생성을 위해 첫 번째 유효 인덱스 샘플링
-        # (첫 번째 타임스텝의 마스크를 기준으로 고정 격자 포인트를 생성합니다)
-        t0 = time.time()
+        # 고정된 삼각화 격자 구조(Points) 생성을 위해 첫 번째 유효 인덱스 샘플링
         first_valid_idx = 0
         u_sample = ds['u_velocity'].isel(MT=first_valid_idx, Layer=0).values.flatten()
         valid_mask = ~np.isnan(u_sample) & ~np.isnan(lat_2d) & ~np.isnan(lon_2d)
         points = np.column_stack((lon_2d[valid_mask], lat_2d[valid_mask]))
-        print(f"  [벤치마크] 첫 번째 타임스텝의 마스크를 기준으로 고정 격자 포인트를 생성: {time.time() - t0:.4f}초")
+        print(f" 첫 번째 타임스텝의 마스크를 기준으로 고정 격자 포인트를 생성")
 
         if len(points) == 0:
             print(f"[오류] {base_name} 파일에 유효한 해양 좌표 데이터가 없습니다.")
             return
 
-
-        # [측정 3] LinearNDInterpolator 최초 뼈대(Delaunay Triangulation) 빌드 시간 (가장 CPU 소모가 큰 구간 중 하나)
+        # LinearNDInterpolator 최초 뼈대(Delaunay Triangulation) 빌드 시간 (가장 CPU 소모가 큰 구간 중 하나)
         # 임시 값으로 뼈대(Delaunay Triangulation)를 최초 1회만 빌드합니다.
         t0 = time.time()
         u_vals_sample = u_sample[valid_mask].astype(np.float64)
@@ -65,7 +60,7 @@ def process_file_with_reused_grid(
         v_sample = ds['v_velocity'].isel(MT=first_valid_idx, Layer=0).values.flatten()
         v_vals_sample = v_sample[valid_mask].astype(np.float64)
         interp_v = LinearNDInterpolator(points, v_vals_sample)
-        print(f"  [벤치마크] 최초 삼각화 격자 기하 구조 빌드 소요 시간: {time.time() - t0:.4f}초 (총 {len(points)} 포인트)")
+        print(f" 최초 삼각화 격자 기하 구조 빌드 소요 시간: {time.time() - t0:.4f}초 (총 {len(points)} 포인트)")
 
         refTime = pd.to_datetime(mt_array[0]).strftime('%Y-%m-%dT%H:%M:%S.000Z')
 
@@ -75,17 +70,16 @@ def process_file_with_reused_grid(
                 print(f"[경고] 인덱스 {mt_idx}는 범위를 벗어났습니다. (최대 인덱스: {mt_array.size - 1}) 건너뜁니다.")
                 continue
 
+            t0 = time.time()
+
             forecastTime = pd.to_datetime(mt_array[mt_idx]).strftime('%Y-%m-%dT%H:%M:%S.000Z')
             time_str = pd.to_datetime(mt_array[mt_idx]).strftime('%Y%m%d%H')
 
             print(f"[{mt_idx + 1}/{mt_array.size}] MT 시간대 처리 중... ({forecastTime})")
 
-            # [측정 4] 디스크에서 단일 타임스텝 raw 데이터 로드 시간 (I/O)
             # [메모리 최적화] 대용량 배열 전체를 읽지 않고 해당 타임스텝 딱 '한 장'만 디스크에서 로드
-            t0 = time.time()
             u_raw = ds['u_velocity'].isel(MT=mt_idx, Layer=0).values.flatten()
             v_raw = ds['v_velocity'].isel(MT=mt_idx, Layer=0).values.flatten()
-            print(f"    [벤치마크] 데이터 로드 소요 시간: {time.time() - t0:.4f}초")
 
             # float32 형식을 float64로 명시적 변환
             u_vals = u_raw[valid_mask].astype(np.float64)
@@ -95,16 +89,12 @@ def process_file_with_reused_grid(
             interp_u.values = u_vals.reshape(-1, 1)
             interp_v.values = v_vals.reshape(-1, 1)
 
-            # [측정 4] 실제 격자 보간 연산 수행 시간 (가장 강력한 CPU 병목 후보)
+            # 실제 격자 보간 연산 수행 시간 (가장 강력한 CPU 병목 후보)
             # 격자 보간 수행
-            t0 = time.time()
             u_grid = interp_u(grid_lon, grid_lat)
             v_grid = interp_v(grid_lon, grid_lat)
-            print(f"    [벤치마크] 격자 보간(Interpolation) 연산 소요 시간: {time.time() - t0:.4f}초")
 
-            # [측정 5] 반올림 및 결측치 마스킹 처리 시간
             # NumPy의 벡터화 연산을 이용해 전체 격자 데이터를 한 번에 소수점 2자리 반올림 후 1차원 평탄화
-            t0 = time.time()
             u_rounded = np.round(u_grid, 2).flatten()
             v_rounded = np.round(v_grid, 2).flatten()
             # 결측치(NaN) 위치를 불리언(Boolean) 마스크로 한 번에 일괄 계산
@@ -113,10 +103,9 @@ def process_file_with_reused_grid(
             # 미리 계산된 마스크를 활용하여 빠르게 리스트 변환 (반복문 내 무거운 연산 제거)
             u_flat = [None if isnan else float(val) for val, isnan in zip(u_rounded, u_nan_mask)]
             v_flat = [None if isnan else float(val) for val, isnan in zip(v_rounded, v_nan_mask)]
-            print(f"    [벤치마크] 반올림 및 리스트 변환 소요 시간: {time.time() - t0:.4f}초")
+            print(f"    [벤치마크] 격자 보간 연산 수행 소요 시간: {time.time() - t0:.4f}초")
 
             # 페이로드 및 파일 저장 (I/O)
-            t0 = time.time()
             """
             payload = [
                 {
@@ -142,8 +131,9 @@ def process_file_with_reused_grid(
                     }
                 }
             ]
-
             """
+
+            t0 = time.time()
             # JSON 구조 정의
             payload = [
                 {
@@ -203,7 +193,6 @@ def process_file_with_reused_grid(
                     "data": v_flat
                 }
             ]
-
 
             try:
                 output_filename =  f"{time_str}-surface-currents-oscar-1.0.json"
