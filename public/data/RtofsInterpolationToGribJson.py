@@ -6,57 +6,70 @@ import json
 import gc
 from scipy.interpolate import LinearNDInterpolator
 import pandas as pd
+import time
 
-def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx, ny, target_lons, target_lats, output_dir):
+def process_file_with_reused_grid(
+        file_path,
+        mt_indices,
+        output_dir):
+
+    # 전체 함수 시작 시간 측정
+    func_start_time = time.time()
     """
     하나의 파일에 대해 LinearNDInterpolator 구조를 최초 1회만 빌드하고,
     지정된 MT 인덱스 배열을 순차적으로 값만 변경하여 메모리 세이프하게 처리하는 함수
     """
     base_name = os.path.splitext(os.path.basename(file_path))[0]
     print(f"파일 처리 시작: [{base_name}]")
-    # 이번 파일 처리에서 생성된 파일명들을 담을 로컬 리스트
     generated_files = []
 
     with xr.open_dataset(file_path) as ds:
-        mt_array = ds['MT'][:].values
+        # 1도 정규 격자 정보 정의 (모든 파일 전역 공통 격자)
+        target_lons = np.arange(0, 360, 1.0)
+        target_lats = np.arange(90, -91, -1.0)
+        grid_lon, grid_lat = np.meshgrid(target_lons, target_lats)
+        ny, nx = grid_lon.shape
+
+        mt_array = pd.to_datetime(ds['MT'].values)
 
         for mt_idx in mt_indices:
             if mt_idx < 0 or mt_idx >= mt_array.size:
                 raise ValueError(f"인덱스 {mt_idx}는 범위를 벗어났습니다. (최대 인덱스: {mt_array.size - 1}) --mt_range 를 다시 설정해 주세요.")
 
-
-        # 1. 공통 위경도 2D 격자 데이터 추출 및 평탄화
+        # [측정 1] 격자 데이터 추출 및 평탄화 시간
+        t0 = time.time()
         lat_2d = ds['Latitude'].values.flatten()
         lon_2d = ds['Longitude'].values.flatten()
+        print(f"  [벤치마크] 위경도 2D 격자 평탄화 소요 시간: {time.time() - t0:.4f}초")
 
-        # 2. 고정된 삼각화 격자 구조(Points) 생성을 위해 첫 번째 유효 인덱스 샘플링
+        # [측정 2] 고정된 삼각화 격자 구조(Points) 생성을 위해 첫 번째 유효 인덱스 샘플링
         # (첫 번째 타임스텝의 마스크를 기준으로 고정 격자 포인트를 생성합니다)
-
+        t0 = time.time()
         first_valid_idx = 0
         u_sample = ds['u_velocity'].isel(MT=first_valid_idx, Layer=0).values.flatten()
         valid_mask = ~np.isnan(u_sample) & ~np.isnan(lat_2d) & ~np.isnan(lon_2d)
         points = np.column_stack((lon_2d[valid_mask], lat_2d[valid_mask]))
+        print(f"  [벤치마크] 첫 번째 타임스텝의 마스크를 기준으로 고정 격자 포인트를 생성: {time.time() - t0:.4f}초")
 
         if len(points) == 0:
             print(f"[오류] {base_name} 파일에 유효한 해양 좌표 데이터가 없습니다.")
             return
 
-        # 3. 첫 번째 방법(LinearNDInterpolator) 구조 초기화
-        # 임시 값으로 뼈대(Delaunay Triangulation)를 최초 1회만 빌드합니다.
-        u_vals_sample = u_sample[valid_mask]
-        interp_u = LinearNDInterpolator(points, u_vals_sample)
 
+        # [측정 3] LinearNDInterpolator 최초 뼈대(Delaunay Triangulation) 빌드 시간 (가장 CPU 소모가 큰 구간 중 하나)
+        # 임시 값으로 뼈대(Delaunay Triangulation)를 최초 1회만 빌드합니다.
+        t0 = time.time()
+        u_vals_sample = u_sample[valid_mask].astype(np.float64)
+        interp_u = LinearNDInterpolator(points, u_vals_sample)
         # V 컴포넌트도 동일한 좌표계를 사용하여 빌드
         v_sample = ds['v_velocity'].isel(MT=first_valid_idx, Layer=0).values.flatten()
-        v_vals_sample = v_sample[valid_mask]
+        v_vals_sample = v_sample[valid_mask].astype(np.float64)
         interp_v = LinearNDInterpolator(points, v_vals_sample)
-
-        print(f"고정 격자 기하 구조 빌드 완료. (총 {len(points)} 포인트 삼각화 완료)")
-
+        print(f"  [벤치마크] 최초 삼각화 격자 기하 구조 빌드 소요 시간: {time.time() - t0:.4f}초 (총 {len(points)} 포인트)")
 
         refTime = pd.to_datetime(mt_array[0]).strftime('%Y-%m-%dT%H:%M:%S.000Z')
 
-        # 4. 입력받은 MT 인덱스 배열 순회 (값만 주입하여 초고속 보간)
+        # 입력받은 MT 인덱스 배열 순회 (값만 주입하여 초고속 보간)
         for mt_idx in mt_indices:
             if mt_idx < 0 or mt_idx >= mt_array.size:
                 print(f"[경고] 인덱스 {mt_idx}는 범위를 벗어났습니다. (최대 인덱스: {mt_array.size - 1}) 건너뜁니다.")
@@ -67,27 +80,43 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
 
             print(f"[{mt_idx + 1}/{mt_array.size}] MT 시간대 처리 중... ({forecastTime})")
 
-
+            # [측정 4] 디스크에서 단일 타임스텝 raw 데이터 로드 시간 (I/O)
             # [메모리 최적화] 대용량 배열 전체를 읽지 않고 해당 타임스텝 딱 '한 장'만 디스크에서 로드
-
+            t0 = time.time()
             u_raw = ds['u_velocity'].isel(MT=mt_idx, Layer=0).values.flatten()
             v_raw = ds['v_velocity'].isel(MT=mt_idx, Layer=0).values.flatten()
+            print(f"    [벤치마크] 데이터 로드 소요 시간: {time.time() - t0:.4f}초")
 
-            u_vals = u_raw[valid_mask]
-            v_vals = v_raw[valid_mask]
+            # float32 형식을 float64로 명시적 변환
+            u_vals = u_raw[valid_mask].astype(np.float64)
+            v_vals = v_raw[valid_mask].astype(np.float64)
 
             # [첫 번째 방법의 핵심 최적화] 기하학 구조 재빌드 없이 값(.values)만 업데이트
             interp_u.values = u_vals.reshape(-1, 1)
             interp_v.values = v_vals.reshape(-1, 1)
 
+            # [측정 4] 실제 격자 보간 연산 수행 시간 (가장 강력한 CPU 병목 후보)
             # 격자 보간 수행
+            t0 = time.time()
             u_grid = interp_u(grid_lon, grid_lat)
             v_grid = interp_v(grid_lon, grid_lat)
+            print(f"    [벤치마크] 격자 보간(Interpolation) 연산 소요 시간: {time.time() - t0:.4f}초")
 
-            # 1D 평탄화 및 결측치 소수점 반올림 처리
-            u_flat = [None if np.isnan(val) else round(float(val), 2) for val in u_grid.flatten()]
-            v_flat = [None if np.isnan(val) else round(float(val), 2) for val in v_grid.flatten()]
+            # [측정 5] 반올림 및 결측치 마스킹 처리 시간
+            # NumPy의 벡터화 연산을 이용해 전체 격자 데이터를 한 번에 소수점 2자리 반올림 후 1차원 평탄화
+            t0 = time.time()
+            u_rounded = np.round(u_grid, 2).flatten()
+            v_rounded = np.round(v_grid, 2).flatten()
+            # 결측치(NaN) 위치를 불리언(Boolean) 마스크로 한 번에 일괄 계산
+            u_nan_mask = np.isnan(u_rounded)
+            v_nan_mask = np.isnan(v_rounded)
+            # 미리 계산된 마스크를 활용하여 빠르게 리스트 변환 (반복문 내 무거운 연산 제거)
+            u_flat = [None if isnan else float(val) for val, isnan in zip(u_rounded, u_nan_mask)]
+            v_flat = [None if isnan else float(val) for val, isnan in zip(v_rounded, v_nan_mask)]
+            print(f"    [벤치마크] 반올림 및 리스트 변환 소요 시간: {time.time() - t0:.4f}초")
 
+            # 페이로드 및 파일 저장 (I/O)
+            t0 = time.time()
             """
             payload = [
                 {
@@ -113,6 +142,7 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
                     }
                 }
             ]
+
             """
             # JSON 구조 정의
             payload = [
@@ -165,7 +195,7 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
                         "ny": ny,
                         "lo1": float(target_lons[0]),
                         "la1": float(target_lats[0]),
-                        "lo2": float(target_lats[0]),
+                        "lo2": float(target_lons[-1]),
                         "la2": float(target_lats[-1]),
                         "dx": 1.0,
                         "dy": 1.0
@@ -182,16 +212,17 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
                     json.dump(payload, f)
 
                 print(f"저장 완료! (용량: {os.path.getsize(output_filepath) / (1024*1024):.2f} MB)")
+                print(f"    [벤치마크] JSON 파일 저장 소요 시간: {time.time() - t0:.4f}초 (용량: {os.path.getsize(output_filepath) / (1024*1024):.2f} MB)")
                 # 생성된 파일명을 리스트에 추가 (상대 경로 또는 파일명만 필요시 선택)
                 generated_files.append(output_filename)
             except Exception as e:
-                print(f"파일 처리 중 에러 발생: {e}")
+                print(f"{time_str} 파일 처리 중 에러 발생: {e}")
 
             # 루프 사이클마다 사용이 끝난 루프 로컬 메모리 비우기 예비 조치
-            del u_raw, v_raw, u_grid, v_grid, u_flat, v_flat
+            del u_raw, v_raw, u_grid, v_grid, u_flat, v_flat, u_rounded, v_rounded, u_nan_mask, v_nan_mask
             gc.collect()
 
-
+    print(f"파일 전체 처리 완료 소요 시간: {time.time() - func_start_time:.4f}초")
     return generated_files
 
 
@@ -216,12 +247,6 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # 1도 정규 격자 정보 정의 (모든 파일 전역 공통 격자)
-    target_lons = np.arange(0, 360, 1.0)
-    target_lats = np.arange(90, -91, -1.0)
-    grid_lon, grid_lat = np.meshgrid(target_lons, target_lats)
-    ny, nx = grid_lon.shape
-
     print(f"격자 재사용 고속 처리 시작 (선택 파일 수: {len(args.files)}개, 대상 인덱스 범위: {start_idx} ~ {end_idx}, 총 {len(mt_indices)}개)")
 
     # 전체 실행 동안 생성된 모든 JSON 파일 이름을 수집할 총괄 리스트
@@ -235,8 +260,7 @@ def main():
 
         try:
             file_generated = process_file_with_reused_grid(
-                file_path, mt_indices, grid_lon, grid_lat, nx, ny,
-                target_lons, target_lats, args.output_dir
+                file_path, mt_indices, args.output_dir
             )
             if file_generated:
                 all_generated_files.extend(file_generated)
@@ -250,24 +274,27 @@ def main():
     # 중복 파일명 제거 (필요시 정렬 수행)
     all_generated_files = sorted(list(set(all_generated_files)))
 
-    # catalog.json 파일로 overwrite 저장
-    catalog_path = os.path.join(args.output_dir, "catalog.json")
+    if all_generated_files:
+        # catalog.json 파일로 overwrite 저장
+        catalog_path = os.path.join(args.output_dir, "catalog.json")
+        # 저장할 구조 정의 (필요에 따라 딕셔너리 형태로 감싸거나 리스트 형태로 바로 저장 가능합니다)
+        catalog_data = {
+            "files": all_generated_files,
+            "total_count": len(all_generated_files)
+        }
+        try:
+            with open(catalog_path, 'w', encoding='utf-8') as f:
+                json.dump(catalog_data, f, ensure_ascii=False, indent=4)
 
-    # 저장할 구조 정의 (필요에 따라 딕셔너리 형태로 감싸거나 리스트 형태로 바로 저장 가능합니다)
-    catalog_data = {
-        "files": all_generated_files,
-        "total_count": len(all_generated_files)
-    }
+            print(f"[카탈로그 저장 완료] 총 {len(all_generated_files)}개의 파일 목록이 {catalog_path} 에 overwrite 되었습니다.")
+        except Exception as e:
+            print(f"카탈로그 파일 처리 중 에러 발생: {e}")
+        finally:
+            print("[작업 종료]")
+    else:
+        print("[작업 종료] 파일 생성이 실패하여 catalog.json 파일을 생성하지 않았습니다.")
 
-    try:
-        with open(catalog_path, 'w', encoding='utf-8') as f:
-            json.dump(catalog_data, f, ensure_ascii=False, indent=4)
 
-        print(f"[카탈로그 저장 완료] 총 {len(all_generated_files)}개의 파일 목록이 {catalog_path} 에 overwrite 되었습니다.")
-    except Exception as e:
-        print(f"파일 처리 중 에러 발생: {e}")
-    finally:
-        print("[작업 종료]")
 
 if __name__ == "__main__":
     main()
