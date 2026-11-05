@@ -18,7 +18,7 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
     generated_files = []
 
     with xr.open_dataset(file_path) as ds:
-        mt_array = ds['MT'].values
+        mt_array = ds['MT'][:].values
 
         for mt_idx in mt_indices:
             if mt_idx < 0 or mt_idx >= mt_array.size:
@@ -29,9 +29,9 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
         lat_2d = ds['Latitude'].values.flatten()
         lon_2d = ds['Longitude'].values.flatten()
 
-
         # 2. 고정된 삼각화 격자 구조(Points) 생성을 위해 첫 번째 유효 인덱스 샘플링
         # (첫 번째 타임스텝의 마스크를 기준으로 고정 격자 포인트를 생성합니다)
+
         first_valid_idx = 0
         u_sample = ds['u_velocity'].isel(MT=first_valid_idx, Layer=0).values.flatten()
         valid_mask = ~np.isnan(u_sample) & ~np.isnan(lat_2d) & ~np.isnan(lon_2d)
@@ -77,8 +77,8 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
             v_vals = v_raw[valid_mask]
 
             # [첫 번째 방법의 핵심 최적화] 기하학 구조 재빌드 없이 값(.values)만 업데이트
-            interp_u.values = u_vals
-            interp_v.values = v_vals
+            interp_u.values = u_vals.reshape(-1, 1)
+            interp_v.values = v_vals.reshape(-1, 1)
 
             # 격자 보간 수행
             u_grid = interp_u(grid_lon, grid_lat)
@@ -88,6 +88,32 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
             u_flat = [None if np.isnan(val) else round(float(val), 2) for val in u_grid.flatten()]
             v_flat = [None if np.isnan(val) else round(float(val), 2) for val in v_grid.flatten()]
 
+            """
+            payload = [
+                {
+                    "header": {
+                        "discipline": 10,
+                        "disciplineName": "Oceanographic products",
+                        "center": -3,
+                        "centerName": "Earth & Space Research",
+                        "refTime": refTime,
+                        "parameterCategory": 1,
+                        "parameterCategoryName": "Currents",
+                        "parameterNumber": 2,
+                        "parameterNumberName": "U_component_of_current",
+                        "parameterUnit": "m.s-1",
+                        "forecastTime": forecastTime,
+                        "surface1Type": 160,
+                        "surface1TypeName": "Depth below sea level",
+                        "surface1Value": 0,
+                        "nx": nx,
+                        "ny": ny,
+                        "dx": 1.0,
+                        "dy": 1.0
+                    }
+                }
+            ]
+            """
             # JSON 구조 정의
             payload = [
                 {
@@ -148,6 +174,7 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
                 }
             ]
 
+
             try:
                 output_filename =  f"{time_str}-surface-currents-oscar-1.0.json"
                 output_filepath = os.path.join(output_dir, output_filename)
@@ -163,6 +190,7 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
             # 루프 사이클마다 사용이 끝난 루프 로컬 메모리 비우기 예비 조치
             del u_raw, v_raw, u_grid, v_grid, u_flat, v_flat
             gc.collect()
+
 
     return generated_files
 
@@ -247,6 +275,5 @@ if __name__ == "__main__":
 """
 python RtofsInterpolationToGribJson.py \
 --files ./test/file1.nc ./test/file2.nc ./test/file3.nc \
----mt_range 0 3 \
---output_dir ./oscar
+---mt_range 0 8 --output_dir ./oscar
 """
