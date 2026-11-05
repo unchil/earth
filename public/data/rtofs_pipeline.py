@@ -14,6 +14,7 @@ import requests
 from bs4 import BeautifulSoup
 
 def download_and_extract_rtofs():
+
     """NOMADS 서버에서 가장 최신 가용한 rtofs_glo_uv 파일(.nc.gz)을 다운로드하고 압축 해제 후 경로 반환"""
     base_url = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/rtofs/prod/"
     print(f"Connecting to base URL: {base_url}")
@@ -96,6 +97,7 @@ def download_and_extract_rtofs():
     print(f"다운로드 URL: {file_url}")
     print("다운로드 시작...")
 
+    t0 = time.time()
     with requests.get(file_url, stream=True) as r:
         r.raise_for_status()
         with open(file_name, 'wb') as f:
@@ -103,7 +105,7 @@ def download_and_extract_rtofs():
                 if chunk:
                     f.write(chunk)
 
-    print(f"다운로드 완료: {os.path.abspath(file_name)}")
+    print(f"    [벤치마크] 다운로드 완료: {os.path.abspath(file_name)}: {time.time() - t0:.4f}초")
 
     # 압축 해제 (.nc.gz -> .nc)
     extracted_file_name = file_name[:-3]
@@ -114,28 +116,48 @@ def download_and_extract_rtofs():
             shutil.copyfileobj(f_in, f_out)
 
     os.remove(file_name)
-    print(f"압축 해제 및 원본 정리 완료: {os.path.abspath(extracted_file_name)}")
+
     return extracted_file_name
 
 
-def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx, ny, target_lons, target_lats, output_dir):
-    """제공해주신 RtofsInterpolationToGribJson_2.py의 보간 및 JSON 컨버팅 핵심 로직"""
+def process_file_with_reused_grid(
+        file_path,
+        mt_indices,
+        output_dir):
+
+    func_start_time = time.time()
+    """
+    하나의 파일에 대해 LinearNDInterpolator 구조를 최초 1회만 빌드하고,
+    지정된 MT 인덱스 배열을 순차적으로 값만 변경하여 메모리 세이프하게 처리하는 함수
+    """
+
     base_name = os.path.splitext(os.path.basename(file_path))[0]
     print(f"파일 처리 시작: [{base_name}]")
     generated_files = []
 
-    with xr.open_dataset(file_path) as ds:
-        mt_array = ds['MT'][:].values
+    with xr.open_dataset(file_path, chunks={"MT": 1}) as ds:
+        #  정규 격자 정의
+        target_lons = np.arange(0, 360, 1.0)
+        target_lats = np.arange(90, -91, -1.0)
+        grid_lon, grid_lat = np.meshgrid(target_lons, target_lats)
+        ny, nx = grid_lon.shape
+
+        mt_array = pd.to_datetime(ds['MT'].values)
 
         for mt_idx in mt_indices:
             if mt_idx < 0 or mt_idx >= mt_array.size:
                 raise ValueError(f"인덱스 {mt_idx}는 범위를 벗어났습니다. (최대 인덱스: {mt_array.size - 1})")
 
-        lat_2d = ds['Latitude'].values.flatten()
-        lon_2d = ds['Longitude'].values.flatten()
+        lat_2d = ds['Latitude'].compute().values.flatten()
+        # [수정] 경도 값이 360도를 초과하는 경우 Modulo 연산으로 정규화 적용 후 values 추출
+        lon_2d = ds['Longitude'].compute()
+        lon_normalized = xr.where(
+            lon_2d >= 360, lon_2d % 360, lon_2d
+        )
+        lon_2d = lon_normalized.values.flatten()
 
         first_valid_idx = 0
-        u_sample = ds['u_velocity'].isel(MT=first_valid_idx, Layer=0).values.flatten()
+        u_sample = ds['u_velocity'].isel(MT=first_valid_idx, Layer=0).compute().values.flatten()
         valid_mask = ~np.isnan(u_sample) & ~np.isnan(lat_2d) & ~np.isnan(lon_2d)
         points = np.column_stack((lon_2d[valid_mask], lat_2d[valid_mask]))
 
@@ -143,41 +165,50 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
             print(f"[오류] {base_name} 파일에 유효한 해양 좌표 데이터가 없습니다.")
             return generated_files
 
-        u_vals_sample = u_sample[valid_mask]
+        t0 = time.time()
+        u_vals_sample = u_sample[valid_mask].astype(np.float64)
         interp_u = LinearNDInterpolator(points, u_vals_sample)
-
-        v_sample = ds['v_velocity'].isel(MT=first_valid_idx, Layer=0).values.flatten()
-        v_vals_sample = v_sample[valid_mask]
+        v_sample = ds['v_velocity'].isel(MT=first_valid_idx, Layer=0).compute().values.flatten()
+        v_vals_sample = v_sample[valid_mask].astype(np.float64)
         interp_v = LinearNDInterpolator(points, v_vals_sample)
+        print(f" 최초 삼각화 격자 기하 구조 빌드 소요 시간: {time.time() - t0:.4f}초 (총 {len(points)} 포인트)")
 
-        print(f"고정 격자 기하 구조 빌드 완료. (총 {len(points)} 포인트 삼각화 완료)")
 
         refTime = pd.to_datetime(mt_array[0]).strftime('%Y-%m-%dT%H:%M:%S.000Z')
 
         for mt_idx in mt_indices:
-            if mt_idx < 0 or mt_idx >= mt_array.size:
-                continue
-
+            t0 = time.time()
             forecastTime = pd.to_datetime(mt_array[mt_idx]).strftime('%Y-%m-%dT%H:%M:%S.000Z')
             time_str = pd.to_datetime(mt_array[mt_idx]).strftime('%Y%m%d%H')
 
             print(f"[{mt_idx + 1}/{mt_array.size}] MT 시간대 처리 중... ({forecastTime})")
 
-            u_raw = ds['u_velocity'].isel(MT=mt_idx, Layer=0).values.flatten()
-            v_raw = ds['v_velocity'].isel(MT=mt_idx, Layer=0).values.flatten()
+            u_raw = ds['u_velocity'].isel(MT=mt_idx, Layer=0).compute().values.flatten()
+            v_raw = ds['v_velocity'].isel(MT=mt_idx, Layer=0).compute().values.flatten()
 
-            u_vals = u_raw[valid_mask]
-            v_vals = v_raw[valid_mask]
+            u_vals = u_raw[valid_mask].astype(np.float64)
+            v_vals = v_raw[valid_mask].astype(np.float64)
 
             interp_u.values = u_vals.reshape(-1, 1)
             interp_v.values = v_vals.reshape(-1, 1)
 
+            # 실제 격자 보간 연산 수행 시간 (가장 강력한 CPU 병목 후보)
+            # 격자 보간 수행
             u_grid = interp_u(grid_lon, grid_lat)
             v_grid = interp_v(grid_lon, grid_lat)
 
-            u_flat = [None if np.isnan(val) else round(float(val), 2) for val in u_grid.flatten()]
-            v_flat = [None if np.isnan(val) else round(float(val), 2) for val in v_grid.flatten()]
+            # NumPy의 벡터화 연산을 이용해 전체 격자 데이터를 한 번에 소수점 2자리 반올림 후 1차원 평탄화
+            u_rounded = np.round(u_grid, 2).flatten()
+            v_rounded = np.round(v_grid, 2).flatten()
+            # 결측치(NaN) 위치를 불리언(Boolean) 마스크로 한 번에 일괄 계산
+            u_nan_mask = np.isnan(u_rounded)
+            v_nan_mask = np.isnan(v_rounded)
+            # 미리 계산된 마스크를 활용하여 빠르게 리스트 변환 (반복문 내 무거운 연산 제거)
+            u_flat = [None if isnan else float(val) for val, isnan in zip(u_rounded, u_nan_mask)]
+            v_flat = [None if isnan else float(val) for val, isnan in zip(v_rounded, v_nan_mask)]
+            print(f"    [벤치마크] 격자 보간 연산 수행 소요 시간: {time.time() - t0:.4f}초")
 
+            t0 = time.time()
             payload = [
                 {
                     "header": {
@@ -228,7 +259,7 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
                         "ny": ny,
                         "lo1": float(target_lons[0]),
                         "la1": float(target_lats[0]),
-                        "lo2": float(target_lons[0]),
+                        "lo2": float(target_lons[-1]),
                         "la2": float(target_lats[-1]),
                         "dx": 1.0,
                         "dy": 1.0
@@ -244,13 +275,16 @@ def process_file_with_reused_grid(file_path, mt_indices, grid_lon, grid_lat, nx,
                     json.dump(payload, f)
 
                 print(f"저장 완료! (용량: {os.path.getsize(output_filepath) / (1024*1024):.2f} MB)")
+                print(f"    [벤치마크] JSON 파일 저장 소요 시간: {time.time() - t0:.4f}초 (용량: {os.path.getsize(output_filepath) / (1024*1024):.2f} MB)")
                 generated_files.append(output_filename)
             except Exception as e:
-                print(f"파일 처리 중 에러 발생: {e}")
+                print(f"{time_str} 파일 처리 중 에러 발생: {e}")
 
-            del u_raw, v_raw, u_grid, v_grid, u_flat, v_flat
+            # 루프 사이클마다 사용이 끝난 루프 로컬 메모리 비우기 예비 조치
+            del u_raw, v_raw, u_grid, v_grid, u_flat, v_flat, u_rounded, v_rounded, u_nan_mask, v_nan_mask
             gc.collect()
 
+    print(f"파일 전체 처리 완료 소요 시간: {time.time() - func_start_time:.4f}초")
     return generated_files
 
 
@@ -274,19 +308,14 @@ def main():
         print("[종료] 다운로드 가능한 파일이 없어 작업을 중단합니다.")
         return
 
-    # 2. 정규 격자 정의
-    target_lons = np.arange(0, 360, 1.0)
-    target_lats = np.arange(90, -91, -1.0)
-    grid_lon, grid_lat = np.meshgrid(target_lons, target_lats)
-    ny, nx = grid_lon.shape
+
 
     print(f"\n격자 보간 고속 처리 시작 (대상 파일: {downloaded_nc_file}, 인덱스 범위: {start_idx} ~ {end_idx})")
 
     all_generated_files = []
     try:
         file_generated = process_file_with_reused_grid(
-            downloaded_nc_file, mt_indices, grid_lon, grid_lat, nx, ny,
-            target_lons, target_lats, args.output_dir
+            downloaded_nc_file, mt_indices, args.output_dir
         )
         if file_generated:
             all_generated_files.extend(file_generated)
