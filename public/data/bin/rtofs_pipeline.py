@@ -14,6 +14,8 @@ def main():
 
     args = parser.parse_args()
 
+    download_dir = "../download"
+
     start_idx, end_idx = args.mt_range
     if start_idx > end_idx:
         parser.error("오류: --mt_range의 시작 인덱스는 끝 인덱스보다 클 수 없습니다.")
@@ -24,7 +26,7 @@ def main():
     print(" [1단계] RtosfsCollector.py 실행 (최신 RTOFS 파일 다운로드 및 압축 해제)")
     print("=" * 60)
 
-    collector_script = "RtosfsCollector.py"
+    collector_script = "RtofsCollector.py"
     if not os.path.exists(collector_script):
         print(f"[오류] 수집 스크립트 '{collector_script}'를 찾을 수 없습니다.")
         return
@@ -34,7 +36,7 @@ def main():
     collect_result = subprocess.run(["python3", collector_script], capture_output=False)
 
     if collect_result.returncode != 0:
-        print("[오류] RtosfsCollector 실행 중 문제가 발생했습니다.")
+        print("[오류] RtofsCollector.py 실행 중 문제가 발생했습니다.")
         return
     print(f" 수집 단계 완료 소요 시간: {time.time() - t0:.4f}초\n")
 
@@ -43,7 +45,7 @@ def main():
     print("=" * 60)
 
     # 다운로드 및 압축 해제된 .nc 파일 패턴 탐색 (예: rtofs_glo_uv_YYYYMMDD_hcasts.nc)
-    nc_files = glob.glob("rtofs_glo_uv_*_hcasts.nc")
+    nc_files = glob.glob(f"{download_dir}/rtofs_glo_uv_*_hcasts.nc")
     if not nc_files:
         print("[오류] 다운로드된 NetCDF(.nc) 파일을 찾을 수 없습니다.")
         return

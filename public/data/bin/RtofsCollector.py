@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 def download_latest_available_rtofs():
     base_url = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/rtofs/prod/"
     print(f"Connecting to base URL: {base_url}")
-
+    download_dir = "../download"
     response = requests.get(base_url)
     if response.status_code != 200:
         print(f"서버에 접속할 수 없습니다. 상태 코드: {response.status_code}")
@@ -95,27 +95,30 @@ def download_latest_available_rtofs():
     print(f"다운로드 URL: {file_url}")
     print("다운로드 시작...")
 
+    download_path = os.path.join(download_dir, file_name)
+
     # 대용량 파일 다운로드를 위한 스트리밍 방식 적용
     with requests.get(file_url, stream=True) as r:
         r.raise_for_status()
-        with open(file_name, 'wb') as f:
+        with open(download_path, 'wb') as f:
             for chunk in r.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
 
-    print(f"다운로드 완료: {os.path.abspath(file_name)}")
+    print(f"다운로드 완료: {os.path.abspath(download_path)}")
 
     # 2. 다운로드된 .gz 파일 자동 압축 해제 (.nc 파일 추출)
     extracted_file_name = file_name[:-3]  # 뒤의 '.gz' 확장자 제거 (예: .nc.gz -> .nc)
     print(f"압축 해제 중: {file_name} -> {extracted_file_name}")
 
-    with gzip.open(file_name, 'rb') as f_in:
-        with open(extracted_file_name, 'wb') as f_out:
+    extracted_file_path = os.path.join(download_dir, extracted_file_name)
+    with gzip.open(download_path, 'rb') as f_in:
+        with open(extracted_file_path, 'wb') as f_out:
             shutil.copyfileobj(f_in, f_out)
 
     # 3. 원본 .gz 파일 삭제 (선택 사항, 용량 확보용)
-    os.remove(file_name)
-    print(f"압축 해제 및 정리가 완료되었습니다! 최종 파일: {os.path.abspath(extracted_file_name)}")
+    os.remove(download_path)
+    print(f"압축 해제 및 정리가 완료되었습니다! 최종 파일: {os.path.abspath(extracted_file_path)}")
 
 
 if __name__ == '__main__':
