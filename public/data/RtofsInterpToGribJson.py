@@ -109,32 +109,6 @@ def process_file_with_reused_grid(
             print(f"    [벤치마크] 격자 보간 연산 수행 소요 시간: {time.time() - t0:.4f}초")
 
             # 페이로드 및 파일 저장 (I/O)
-            """
-            payload = [
-                {
-                    "header": {
-                        "discipline": 10,
-                        "disciplineName": "Oceanographic products",
-                        "center": -3,
-                        "centerName": "Earth & Space Research",
-                        "refTime": refTime,
-                        "parameterCategory": 1,
-                        "parameterCategoryName": "Currents",
-                        "parameterNumber": 2,
-                        "parameterNumberName": "U_component_of_current",
-                        "parameterUnit": "m.s-1",
-                        "forecastTime": int{mt_idx*3),
-                        "surface1Type": 160,
-                        "surface1TypeName": "Depth below sea level",
-                        "surface1Value": 0,
-                        "nx": nx,
-                        "ny": ny,
-                        "dx": 1.0,
-                        "dy": 1.0
-                    }
-                }
-            ]
-            """
 
             t0 = time.time()
             # JSON 구조 정의
