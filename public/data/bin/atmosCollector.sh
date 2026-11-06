@@ -4,7 +4,7 @@
 # 사용법: ./atmosCollector.sh [최대예보시간(기본 72)] [간격(기본 3)]
 # 예) ./atmosCollector.sh          -> 0~72시간, 3시간 간격
 #     ./atmosCollector.sh 120     -> 0~120시간, 3시간 간격
-MAX_HOUR="${1:-12}"
+MAX_HOUR="${1:-72}"
 
 
 
@@ -19,7 +19,7 @@ echo "=== 입력된 최대예보시간:${MAX_HOUR} ==="
 # NOMADS GFS 1.0도 기본 URL
 BASE_URL="https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl"
 
-DIR_DOWNLOAD="./download"
+DIR_DOWNLOAD="../download"
 
 
 # 다운로드할 변수 목록 (추가/삭제 시 이 배열만 수정) -> var_<이름>=on
@@ -144,7 +144,7 @@ done
 echo "=== 모든 데이터 다운로드 완료 ==="
 
 
-DIR_ATMOS="./weather"
+DIR_ATMOS="../weather"
 
 # Available Ranges and Values: (surface, level, filter_surface, filter_value)
 LAYERS=(
