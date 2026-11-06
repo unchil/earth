@@ -82,6 +82,7 @@ def main():
         print("=" * 60)
         print(f" [성공] 모든 파이프라인 작업이 완료되었습니다! (총 소요 시간: {time.time() - t0:.4f}초)")
         print(f" 결과 저장 디렉토리: {os.path.abspath(args.output_dir)}")
+        os.remove(latest_nc_file)
         print("=" * 60)
 
 if __name__ == "__main__":
