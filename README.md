@@ -1,92 +1,22 @@
 earth
 =====
 
-### un7 comment: Project Origin & Configuration Note
+### Project Origin & Configuration Note
 ***"earth" can be found on GitHub at https://github.com/cambecc/earth. This is a copied project.***
-
 **NOTE: the location of `dev-server.js` has changed from `{repository}/server/` to `{repository}/`**
-
 "earth" is a project to visualize global weather conditions.
-
 A customized instance of "earth" is available at http://earth.nullschool.net.
-
-"earth" is a personal project I've used to learn javascript and browser programming, and is based on the earlier
-[Tokyo Wind Map](https://github.com/cambecc/air) project.  Feedback and contributions are welcome! ...especially
-those that clarify accepted best practices.
-
-building and launching
-----------------------
-
-After installing node.js and npm, clone "earth" and install dependencies:
-
-    git clone https://github.com/cambecc/earth
-    cd earth
-    npm install
-
-Next, launch the development web server:
-
-    node dev-server.js 8080
-
-Finally, point your browser to:
-
-    http://localhost:8080
-
-The server acts as a stand-in for static S3 bucket hosting and so contains almost no server-side logic. It
-serves all files located in the `earth/public` directory. See `public/index.html` and `public/libs/earth/*.js`
-for the main entry points. Data files are located in the `public/data` directory, and there is one sample
-weather layer located at `data/weather/current`.
-
-*For Ubuntu, Mint, and elementary OS, use `nodejs` instead of `node` instead due to a [naming conflict](https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager#ubuntu-mint-elementary-os).
-
-getting map data
-----------------
-
-Map data is provided by [Natural Earth](http://www.naturalearthdata.com) but must be converted to
-[TopoJSON](https://github.com/mbostock/topojson/wiki) format. We make use of a couple different map scales: a
-simplified, larger scale for animation and a more detailed, smaller scale for static display. After installing
-[GDAL](http://www.gdal.org/) and TopoJSON (see [here](http://bost.ocks.org/mike/map/#installing-tools)), the
-following commands build these files:
-
-    curl "http://www.nacis.org/naturalearth/50m/physical/ne_50m_coastline.zip" -o ne_50m_coastline.zip
-    curl "http://www.nacis.org/naturalearth/50m/physical/ne_50m_lakes.zip" -o ne_50m_lakes.zip
-    curl "http://www.nacis.org/naturalearth/110m/physical/ne_110m_coastline.zip" -o ne_110m_coastline.zip
-    curl "http://www.nacis.org/naturalearth/110m/physical/ne_110m_lakes.zip" -o ne_110m_lakes.zip
-    unzip -o ne_\*.zip
-    ogr2ogr -f GeoJSON coastline_50m.json ne_50m_coastline.shp
-    ogr2ogr -f GeoJSON coastline_110m.json ne_110m_coastline.shp
-    ogr2ogr -f GeoJSON -where "scalerank < 4" lakes_50m.json ne_50m_lakes.shp
-    ogr2ogr -f GeoJSON -where "scalerank < 2 AND admin='admin-0'" lakes_110m.json ne_110m_lakes.shp
-    ogr2ogr -f GeoJSON -simplify 1 coastline_tiny.json ne_110m_coastline.shp
-    ogr2ogr -f GeoJSON -simplify 1 -where "scalerank < 2 AND admin='admin-0'" lakes_tiny.json ne_110m_lakes.shp
-    topojson -o earth-topo.json coastline_50m.json coastline_110m.json lakes_50m.json lakes_110m.json
-    topojson -o earth-topo-mobile.json coastline_110m.json coastline_tiny.json lakes_110m.json lakes_tiny.json
-    cp earth-topo*.json <earth-git-repository>/public/data/
 
 getting weather data
 --------------------
 
-Weather data is produced by the [Global Forecast System](http://en.wikipedia.org/wiki/Global_Forecast_System) (GFS),
-operated by the US National Weather Service. Forecasts are produced four times daily and made available for
-download from [NOMADS](http://nomads.ncep.noaa.gov/). The files are in [GRIB2](http://en.wikipedia.org/wiki/GRIB)
-format and contain over [300 records](http://www.nco.ncep.noaa.gov/pmb/products/gfs/gfs.t00z.pgrbf00.grib2.shtml).
-We need only a few of these records to visualize wind data at a particular isobar. The following commands download
-the 1000 hPa wind vectors and convert them to JSON format using the [grib2json](https://github.com/cambecc/grib2json)
-utility:
-
-    
-    YYYYMMDD=<a date, for example: 20140101>
-    curl "http://nomads.ncep.noaa.gov/cgi-bin/filter_gfs.pl?file=gfs.t00z.pgrb2.1p00.f000&lev_10_m_above_ground=on&var_UGRD=on&var_VGRD=on&dir=%2Fgfs.${YYYYMMDD}00" -o gfs.t00z.pgrb2.1p00.f000  
-    grib2json -d -n -o current-wind-surface-level-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
-    cp current-wind-surface-level-gfs-1.0.json <earth-git-repository>/public/data/weather/current
-
-
-### un7 comment: Updated NOMADS GFS Download Service URL
+### Updated NOMADS GFS Download Service URL
 
     YYYYMMDD=<a date, for example: 20261029>, HH=<a hour, for example: 18>
     curl "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl?dir=%2Fgfs.${YYYYMMDD}%2F${HH}%2Fatmos&file=gfs.t${${HH}}z.pgrb2.1p00.f000&var_UGRD=on&var_VGRD=on&lev_10_m_above_ground=on&lev_1000_mb=on&lev_850_mb=on&lev_700_mb=on&lev_500_mb=on&lev_250_mb=on&lev_70_mb=on&lev_10_mb=on&var_PRMSL=on&var_RH=on&var_TCDC=on&var_TMP=on" -o gfs.t${HH}z.pgrb2.1p00.f000 
     curl "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?dir=%2Fgfs.${YYYYMMDD}%2F${HH}%2Fwave%2Fgridded&file=gfswave.t${HH}z.global.0p16.f000.grib2&var_UGRD=on&var_VGRD=on&lev_surface=on&var_WVDIR=on&var_WVHGT=on&var_WVPER=on" -o gfswave.t${HH}z.global.0p16.f000
 
-### un7 comment: GFS Data Specification & `grib2json` Parsing Guide
+### GFS Data Specification & `grib2json` Parsing Guide
 
 #### 1. Available Ranges and Values (Earth Height Layers)
 
@@ -181,83 +111,65 @@ In `index.html` and `earth.js`, the buttons under the **Height** menu (`class="s
 
 ```zsh
 # 1. 지표 바람 (Surface Wind, 10m above ground)
-grib2json -d -n -c --fp wind --fs 103 --fv 10 -o 0000-wind-surface-level-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
 grib2json -d -n -c --fp wind --fs 100 --fv 100000 -o current-wind-isobaric-1000hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fp wind --fs 100 --fv 85000 -o current-wind-isobaric-850hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fp wind --fs 100 --fv 70000 -o current-wind-isobaric-700hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fp wind --fs 100 --fv 50000 -o current-wind-isobaric-500hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fp wind --fs 100 --fv 25000 -o current-wind-isobaric-250hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fp wind --fs 100 --fv 7000 -o current-wind-isobaric-70hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fp wind --fs 100 --fv 1000 -o current-wind-isobaric-10hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
-
 # 2. 상대습도 (Relative Humidity, %)
 grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 100000 -o current-relative_humidity-isobaric-1000hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 85000 -o current-relative_humidity-isobaric-850hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 70000 -o current-relative_humidity-isobaric-700hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 50000 -o current-relative_humidity-isobaric-500hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 25000 -o current-relative_humidity-isobaric-250hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 7000 -o current-relative_humidity-isobaric-70hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 1000 -o current-relative_humidity-isobaric-10hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-
 # 3. 등압면 기온 (Temperature)
 grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 100000 -o current-temp-isobaric-1000hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 85000 -o current-temp-isobaric-850hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 70000 -o current-temp-isobaric-700hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 50000 -o current-temp-isobaric-500hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 25000 -o current-temp-isobaric-250hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 7000 -o current-temp-isobaric-70hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 1000 -o current-temp-isobaric-10hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-
-# 4. 지구 전체의 파고(Significant Wave Height), 파향, 주기의 분포
-grib2json -d -o output.json gfswave.t18z.global.0p16.f000
 ```
 
 ---
 
+## 🌊 데이터 수집 및 변환 (RTOFS to GRIB2 JSON)
 
+NOAA NOMADS 서버 등에서 제공하는 RTOFS(Rapid Refresh Ocean Forecast System) 해양 수치 모델의 NetCDF 데이터를 표준 지리적 위도/경도(Rectilinear Grid) 체계로 리샘플링하고, 웹 시각화 환경(`deck.gl` 등)에서 고속으로 활용할 수 있는 GRIB2 형태의 JSON 페이로드로 변환합니다.
 
-font subsetting
----------------
+### 🛠️ 주요 해결 과제 및 최적화 전략
+1. **곡선 좌표계(Curvilinear Grid) 처리**
+    - 해양 모델은 왜곡된 2차원 곡선 좌표계를 사용하므로 단순 1차원 슬라이싱(`ds.sel()`)이 불가능합니다.
+    - `scipy.interpolate.LinearNDInterpolator`를 활용하여 불규칙한 2차원 격자점(Points)을 $1^\circ \times 1^\circ$ 정규 격자에 선형 보간합니다.
+2. **경도(Longitude) 범위 정규화**
+    - $360^\circ$를 초과하여 누적된 경도 값(예: $1000^\circ$ 이상)을 모듈로 연산을 통해 전지구 표준 범위($0^\circ \sim 360^\circ$)로 교정합니다.
+3. **Delaunay Triangulation 뼈대 재사용을 통한 성능 최적화**
+    - 매 타임스텝마다 삼각화(Triangulation)를 반복하면 심각한 성능 저하가 발생하므로, 최초 1회만 Delaunay Triangulation 기하 구조 뼈대를 빌드하고 이후 타임스텝에서는 값만 교체(`interp.values = ...`)하여 고속 처리를 수행합니다.
+4. **메모리 절약형 슬라이싱 (Lazy Loading)**
+    - 대용량 데이터셋 전체를 메모리에 올리지 않고, `xarray`의 Dask 기반 지연 로딩(`chunks={"MT": 1}`)과 타임스텝별 표층(`Layer=0`) 슬라이싱을 적용하여 메모리 누수를 방지합니다.
 
-This project uses [M+ FONTS](http://mplus-fonts.sourceforge.jp/). To reduce download size, a subset font is
-constructed out of the unique characters utilized by the site. See the `earth/server/font/findChars.js` script
-for details. Font subsetting is performed by the [M+Web FONTS Subsetter](http://mplus.font-face.jp/), and
-the resulting font is placed in `earth/public/styles`.
+### 💻 핵심 변환 코드 요약
 
-[Mono Social Icons Font](http://drinchev.github.io/monosocialiconsfont/) is used for scalable, social networking
-icons. This can be subsetted using [Font Squirrel's WebFont Generator](http://www.fontsquirrel.com/tools/webfont-generator).
+```python
+import os
+import xarray as xr
+import pandas as pd
+import numpy as np
+import time
+from scipy.interpolate import LinearNDInterpolator
+import json
+import gc
 
-implementation notes
---------------------
+# 1. 데이터셋 로드 (Lazy Loading)
+file_path = "./download/rtofs_glo_uv_20261106_hcasts.nc"
+ds = xr.open_dataset(file_path, chunks={"MT": 1})
 
-Building this project required solutions to some interesting problems. Here are a few:
+# 2. 경도 정규화 (0 ~ 360 범위)
+ds['Longitude'] = xr.where(ds['Longitude'].compute() > 360, ds['Longitude'].compute() % 360, ds['Longitude'].compute())
 
-   * The GFS grid has a resolution of 1°. Intermediate points are interpolated in the browser using [bilinear
-     interpolation](http://en.wikipedia.org/wiki/Bilinear_interpolation). This operation is quite costly.
-   * Each type of projection warps and distorts the earth in a particular way, and the degree of distortion must
-     be calculated for each point (x, y) to ensure wind particle paths are rendered correctly. For example,
-     imagine looking at a globe where a wind particle is moving north from the equator. If the particle starts
-     from the center, it will trace a path straight up. However, if the particle starts from the globe's edge,
-     it will trace a path that curves toward the pole. [Finite difference approximations](http://gis.stackexchange.com/a/5075/23451)
-     are used to estimate this distortion during the interpolation process.
-   * The SVG map of the earth is overlaid with an HTML5 Canvas, where the animation is drawn. Another HTML5
-     Canvas sits on top and displays the colored overlay. Both canvases must know where the boundaries of the
-     globe are rendered by the SVG engine, but this pixel-for-pixel information is difficult to obtain directly
-     from the SVG elements. To workaround this problem, the globe's bounding sphere is re-rendered to a
-     detached Canvas element, and the Canvas' pixels operate as a mask to distinguish points that lie outside
-     and inside the globe's bounds.
-   * Most configuration options are persisted in the hash fragment to allow deep linking and back-button
-     navigation. I use a [backbone.js Model](http://backbonejs.org/#Model) to represent the configuration.
-     Changes to the model persist to the hash fragment (and vice versa) and trigger "change" events which flow to
-     other components.
-   * Components use [backbone.js Events](http://backbonejs.org/#Events) to trigger changes in other downstream
-     components. For example, downloading a new layer produces a new grid, which triggers reinterpolation, which
-     in turn triggers a new particle animator. Events flow through the page without much coordination,
-     sometimes causing visual artifacts that (usually) quickly disappear.
-   * There's gotta be a better way to do this. Any ideas?
+# 3. 1도 정규 격자 정의
+target_lons = np.arange(0, 360, 1.0)
+target_lats = np.arange(90, -91, -1.0)
+grid_lon, grid_lat = np.meshgrid(target_lons, target_lats)
+ny, nx = grid_lon.shape
 
-inspiration
------------
+# 4. 2차원 좌표 평탄화 및 결측치 마스킹
+lon_2d = ds['Longitude'].compute().values.flatten()
+lat_2d = ds['Latitude'].compute().values.flatten()
 
-The awesome [hint.fm wind map](http://hint.fm/wind/) and [D3.js visualization library](http://d3js.org) provided
-the main inspiration for this project.
+u_sample = ds['u_velocity'].isel(MT=0, Layer=0).compute().values.flatten()
+valid_mask = ~np.isnan(u_sample) & ~np.isnan(lat_2d) & ~np.isnan(lon_2d)
+points = np.column_stack((lon_2d[valid_mask], lat_2d[valid_mask]))
+
+# 5. 최초 1회 LinearNDInterpolator 뼈대 구축 (핵심 성능 최적화)
+u_vals_sample = u_sample[valid_mask].astype(np.float64)
+interp_u = LinearNDInterpolator(points, u_vals_sample)
+```
+**전체분석 및 구현상세 코드는 [Rtofs_NetCDF_to_Grib2Json.ipynb](https://github.com/unchil/ComposeDataGrid/blob/main/Rtofs_NetCDF_to_Grib2Json.ipynb)  노트북에서 확인하실 수 있습니다.**
