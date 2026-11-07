@@ -172,4 +172,6 @@ points = np.column_stack((lon_2d[valid_mask], lat_2d[valid_mask]))
 u_vals_sample = u_sample[valid_mask].astype(np.float64)
 interp_u = LinearNDInterpolator(points, u_vals_sample)
 ```
-**전체분석 및 구현상세 코드는 [Rtofs_NetCDF_to_Grib2Json.ipynb](https://github.com/unchil/ComposeDataGrid/blob/main/Rtofs_NetCDF_to_Grib2Json.ipynb)  노트북에서 확인하실 수 있습니다.**
+**전체분석 및 구현상세 코드는 [Rtofs_NetCDF_to_Grib2Json.ipynb](https://github.com/unchil/earth/blob/4f6e874db57a650486ab8d70bca9bfb82afaa4ac/public/data/Rtofs_NetCDF_to_Grib2Json.ipynb)  노트북에서 확인하실 수 있습니다.**
+
+**NetCDF 데이터 다운로드 및 컨버팅 스크립트 [/data/bin](https://github.com/unchil/earth/tree/4f6e874db57a650486ab8d70bca9bfb82afaa4ac/public/data/bin) 에 실행 스크립트가 존재 합니다.**
