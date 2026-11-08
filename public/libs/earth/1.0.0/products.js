@@ -54,7 +54,7 @@ var products = function() {
             return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour));
         }
         var parts = attr.date.split("/");
-        return new Date(Date.UTC(+parts[0], parts[1] - 1, +parts[2], +attr.hour.substring(0, 2)))
+        return new Date(Date.UTC(+parts[0], parts[1] - 1, +parts[2], +attr.hour.substring(0, 2)));
     }
 
     /**
@@ -503,8 +503,8 @@ var products = function() {
                         }),
                         paths: [oscar0pPath(catalog, attr)],
                         date: gfsDate(attr),
-                        //date: oscarDate(catalog, attr),
-                        // navigate: function(step) {return oscarStep(catalog, this.date, step);  },
+                       // date: oscarDate(catalog, attr),
+                       // navigate: function(step) {return oscarStep(catalog, this.date, step);  },
                         builder: function(file) {
                             var uData = file[0].data, vData = file[1].data;
                             return {
@@ -547,51 +547,52 @@ var products = function() {
         }
     };
 
-    /**
-     * Returns the file name for the most recent OSCAR data layer to the specified date. If offset is non-zero,
-     * the file name that many entries from the most recent is returned.
-     *
-     * The result is undefined if there is no entry for the specified date and offset can be found.
-     *
-     * UNDONE: the catalog object itself should encapsulate this logic. GFS can also be a "virtual" catalog, and
-     *         provide a mechanism for eliminating the need for /data/weather/current/* files.
-     *
-     * @param {Array} catalog array of file names, sorted and prefixed with yyyyMMdd. Last item is most recent.
-     * @param {String} date string with format yyyy/MM/dd or "current"
-     * @param {Number?} offset
-     * @returns {String} file name
-     */
-    function lookupOscar(catalog, date, offset) {
+
+    function lookupOscar(catalog, date, offset, param) {
         offset = +offset || 0;
         if (date === "current") {
             return catalog[catalog.length - 1 + offset];
         }
-        var prefix = µ.ymdRedelimit(date, "/", ""), i = _.sortedIndex(catalog, prefix);
+        var prefix = µ.ymdRedelimit(date, "/", "", param);
+        var i = _.sortedIndex(catalog, prefix);
+
         i = (catalog[i] || "").indexOf(prefix) === 0 ? i : i - 1;
         return catalog[i + offset];
     }
 
     function oscar0pPath(catalog, attr) {
-        var file = lookupOscar(catalog, attr.date);
+        var file = lookupOscar(catalog, attr.date, 0, attr.param);
         return file ? [OSCAR_PATH, file].join("/") : null;
     }
 
     function oscarDate(catalog, attr) {
-        var file = lookupOscar(catalog, attr.date);
-        var parts = file ? µ.ymdRedelimit(file, "", "/").split("/") : null;
-        return parts ? new Date(Date.UTC(+parts[0], parts[1] - 1, +parts[2], 0)) : null;
+       // var file = lookupOscar(catalog, attr.date);
+      //  var parts = file ? µ.ymdRedelimit(file, "", "/").split("/") : null;
+      //  return parts ? new Date(Date.UTC(+parts[0], parts[1] - 1, +parts[2], 0)) : null;
+
+        if (attr.date === "current") {
+            // Construct the date from the current time, rounding down to the nearest three-hour block.
+            let now = new Date(Date.now());
+            let hour = Math.floor(now.getUTCHours() / 3);
+            let utcDate = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour);
+            return new Date(utcDate);
+        }
+        let parts = attr.date.split("/");
+        let utcDate = Date.UTC(+parts[0], parts[1] - 1, +parts[2], +attr.hour.substring(0, 2));
+        return new Date(utcDate);
     }
 
-    /**
-     * @returns {Date} the chronologically next or previous OSCAR data layer. How far forward or backward in
-     * time to jump is determined by the step and the catalog of available layers. A step of ±1 moves to the
-     * next/previous entry in the catalog (about 5 days), and a step of ±10 moves to the entry six positions away
-     * (about 30 days).
-     */
     function oscarStep(catalog, date, step) {
-        var file = lookupOscar(catalog, µ.dateToUTCymd(date, "/"), step > 1 ? 6 : step < -1 ? -6 : step);
-        var parts = file ? µ.ymdRedelimit(file, "", "/").split("/") : null;
-        return parts ? new Date(Date.UTC(+parts[0], parts[1] - 1, +parts[2], 0)) : null;
+     //   var file = lookupOscar(catalog, µ.dateToUTCymd(date, "/"), step > 1 ? 6 : step < -1 ? -6 : step);
+     //   var parts = file ? µ.ymdRedelimit(file, "", "/").split("/") : null;
+     //   return parts ? new Date(Date.UTC(+parts[0], parts[1] - 1, +parts[2], 0)) : null;
+
+        var offset = (step > 1 ? 8 : step < -1 ? -8 : step) * 3;
+        var adjusted = new Date(date);
+        adjusted.setHours(adjusted.getHours() + offset );
+        return adjusted;
+
+
     }
 
     function dataSource(header) {

@@ -130,25 +130,22 @@ var µ = function() {
      * @returns {String} the string yyyyfmmfdd as yyyytmmtdd, where f and t are the "from" and "to" delimiters. Either
      *          delimiter may be the empty string.
      */
-    function ymdRedelimit(ymd, fromDelimiter, toDelimiter) {
+    function ymdRedelimit(ymd, fromDelimiter, toDelimiter, param) {
         if (!fromDelimiter) {
-            return ymd.substring(0, 4) + toDelimiter + ymd.substring(4, 2) + toDelimiter + ymd.substring(6, 2)+ toDelimiter + ymd.substring(8, 2);
+            return ymd.substring(0, 4) + toDelimiter + ymd.substring(4, 2) + toDelimiter + ymd.substring(6, 2);
         }
-        //var parts = ymd.substr(0, 10).split(fromDelimiter);
-        var parts = [ymd.substring(0, 4), ymd.substring(5, 7), ymd.substring(8,10), ymd.substring(11, 13)];
-        return [parts[0], parts[1], parts[2], parts[3]].join(toDelimiter);
+        var parts = (  param ==='ocean') ? [ymd.substring(0, 4), ymd.substring(5, 7), ymd.substring(8,10), ymd.substring(11, 13)]: ymd.substring(0, 10).split(fromDelimiter);
+
+        return parts.join(toDelimiter);
     }
 
-    /**
-     * @returns {String} the UTC year, month, and day of the specified date in yyyyfmmfdd format, where f is the
-     *          delimiter (and may be the empty string).
-     */
-    function dateToUTCymd(date, delimiter) {
-        return ymdRedelimit(date.toISOString(), "-", delimiter || "");
+
+    function dateToUTCymd(date, delimiter, param) {
+        return ymdRedelimit(date.toISOString(), "-", delimiter || "", param);
     }
 
-    function dateToConfig(date) {
-        return {date: µ.dateToUTCymd(date, "/"), hour: µ.zeroPad(date.getUTCHours(), 2) + "00"};
+    function dateToConfig(date, param) {
+        return {date: µ.dateToUTCymd(date, "/", param), hour: µ.zeroPad(date.getUTCHours(), 2) + "00"};
     }
 
     /**

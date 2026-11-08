@@ -273,7 +273,8 @@
         }
         var next = gridAgent.value().primaryGrid.navigate(step);
         if (next) {
-            configuration.save(µ.dateToConfig(next));
+            var param = configuration.attributes.param
+            configuration.save(µ.dateToConfig(next, param));
         }
     }
 
@@ -1047,11 +1048,10 @@
                 var attr = _.clone(configuration.attributes);
                 if (attr.date === "current") {
                     configuration.save(ocean);
-                }
-                else {
+                } else {
                     when.all(products.productsFor(_.extend(attr, ocean))).spread(function(product) {
                         if (product.date) {
-                            configuration.save(_.extend(ocean, µ.dateToConfig(product.date)));
+                            configuration.save( _.extend( ocean, µ.dateToConfig(product.date, "ocean" ) ) );
                         }
                     }).otherwise(report.error);
                 }
