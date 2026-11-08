@@ -7,6 +7,7 @@ import gc
 from scipy.interpolate import LinearNDInterpolator
 import pandas as pd
 import time
+from pathlib import Path
 
 def process_file_with_reused_grid(
         file_path,
@@ -213,6 +214,7 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
 
+
     print(f"격자 재사용 고속 처리 시작 (선택 파일 수: {len(args.files)}개, 대상 인덱스 범위: {start_idx} ~ {end_idx}, 총 {len(mt_indices)}개)")
 
     # 전체 실행 동안 생성된 모든 JSON 파일 이름을 수집할 총괄 리스트
@@ -240,13 +242,23 @@ def main():
     # 중복 파일명 제거 (필요시 정렬 수행)
     all_generated_files = sorted(list(set(all_generated_files)))
 
+
     if all_generated_files:
         # catalog.json 파일로 overwrite 저장
         catalog_path = os.path.join(args.output_dir, "catalog.json")
-        # 저장할 구조 정의 (필요에 따라 딕셔너리 형태로 감싸거나 리스트 형태로 바로 저장 가능합니다)
+
+        if Path(catalog_path).exists():
+            with open(catalog_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        else:
+            data = {"files": [], "total_count": 0}
+
+        merge_list = merge_and_overwrite( data.get("files", []) , all_generated_files)
+
+         # 저장할 구조 정의 (필요에 따라 딕셔너리 형태로 감싸거나 리스트 형태로 바로 저장 가능합니다)
         catalog_data = {
-            "files": all_generated_files,
-            "total_count": len(all_generated_files)
+            "files": merge_list,
+            "total_count": len(merge_list)
         }
         try:
             with open(catalog_path, 'w', encoding='utf-8') as f:
@@ -260,6 +272,10 @@ def main():
     else:
         print("[작업 종료] 파일 생성이 실패하여 catalog.json 파일을 생성하지 않았습니다.")
 
+
+def merge_and_overwrite(target_list, new_list):
+    filtered_target = [item for item in target_list if item not in new_list]
+    return filtered_target + new_list
 
 
 if __name__ == "__main__":
