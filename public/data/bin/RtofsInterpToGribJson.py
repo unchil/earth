@@ -116,9 +116,9 @@ def process_file_with_reused_grid(
                 {
                     "header": {
                         "discipline": 10,
-                        "disciplineName": "Oceanographic products",
+                        "disciplineName": "HYCOM archive file",
                         "center": -3,
-                        "centerName": "Earth & Space Research",
+                        "centerName": "National Centers for Environmental Prediction",
                         "refTime": refTime,
                         "parameterCategory": 1,
                         "parameterCategoryName": "Currents",
@@ -144,9 +144,9 @@ def process_file_with_reused_grid(
                 {
                     "header": {
                         "discipline": 10,
-                        "disciplineName": "Oceanographic products",
+                        "disciplineName": "HYCOM archive file",
                         "center": -3,
-                        "centerName": "Earth & Space Research",
+                        "centerName": "National Centers for Environmental Prediction",
                         "refTime": refTime,
                         "parameterCategory": 1,
                         "parameterCategoryName": "Currents",
