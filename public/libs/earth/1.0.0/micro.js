@@ -132,10 +132,11 @@ var µ = function() {
      */
     function ymdRedelimit(ymd, fromDelimiter, toDelimiter) {
         if (!fromDelimiter) {
-            return ymd.substr(0, 4) + toDelimiter + ymd.substr(4, 2) + toDelimiter + ymd.substr(6, 2);
+            return ymd.substring(0, 4) + toDelimiter + ymd.substring(4, 2) + toDelimiter + ymd.substring(6, 2)+ toDelimiter + ymd.substring(8, 2);
         }
-        var parts = ymd.substr(0, 10).split(fromDelimiter);
-        return [parts[0], parts[1], parts[2]].join(toDelimiter);
+        //var parts = ymd.substr(0, 10).split(fromDelimiter);
+        var parts = [ymd.substring(0, 4), ymd.substring(5, 7), ymd.substring(8,10), ymd.substring(11, 13)];
+        return [parts[0], parts[1], parts[2], parts[3]].join(toDelimiter);
     }
 
     /**

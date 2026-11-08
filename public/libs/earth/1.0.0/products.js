@@ -54,7 +54,7 @@ var products = function() {
             return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour));
         }
         var parts = attr.date.split("/");
-        return new Date(Date.UTC(+parts[0], parts[1] - 1, +parts[2], +attr.hour.substr(0, 2)));
+        return new Date(Date.UTC(+parts[0], parts[1] - 1, +parts[2], +attr.hour.substring(0, 2)))
     }
 
     /**
@@ -146,8 +146,7 @@ var products = function() {
                     particles: {velocityScale: 1/60000, maxIntensity: 17}
                 });
             }
-        },
-
+        } ,
         "temp": {
             matches: _.matches({param: "wind", overlayType: "temp"}),
             create: function(attr) {
@@ -238,6 +237,41 @@ var products = function() {
                         bounds: [0, 100],
                         gradient: function(v, a) {
                             return µ.sinebowColor(Math.min(v, 100) / 100, a);
+                        }
+                    }
+                });
+            }
+        },
+
+        "direction_of_wind_wave": {
+            matches: _.matches({param: "wind", overlayType: "direction_of_wind_wave"}),
+            create: function(attr) {
+                return buildProduct({
+                    field: "scalar",
+                    type: "direction_of_wind_wave",
+                    description: localize({
+                        name: {en: "Direction Of Wind Wave", ja: ""},
+                        qualifier: {en: " @ " + describeSurface(attr), ja: " @ " + describeSurfaceJa(attr)}
+                    }),
+                    paths: [gfs1p0degPath(attr, "direction_of_wind_wave", attr.surface, attr.level)],
+                    date: gfsDate(attr),
+                    builder: function(file) {
+                        var record = file[0], data = record.data;
+                        return {
+                            header: record.header,
+                            interpolate: bilinearInterpolateScalar,
+                            data: function(i) {
+                                return data[i];
+                            }
+                        };
+                    },
+                    units: [
+                        {label: "degrees", conversion: function(x) { return x; }, precision: 2}
+                    ],
+                    scale: {
+                        bounds: [0, 360.0],
+                        gradient: function(v, a) {
+                            return µ.sinebowColor(Math.min(v, 1.5) / 1.5, a);
                         }
                     }
                 });
@@ -467,11 +501,10 @@ var products = function() {
                             name: {en: "Ocean Currents", ja: "海流"},
                             qualifier: {en: " @ Surface", ja: " @ 地上"}
                         }),
-                        paths: [oscar0p33Path(catalog, attr)],
-                        date: oscarDate(catalog, attr),
-                        navigate: function(step) {
-                            return oscarStep(catalog, this.date, step);
-                        },
+                        paths: [oscar0pPath(catalog, attr)],
+                        date: gfsDate(attr),
+                        //date: oscarDate(catalog, attr),
+                        // navigate: function(step) {return oscarStep(catalog, this.date, step);  },
                         builder: function(file) {
                             var uData = file[0].data, vData = file[1].data;
                             return {
@@ -538,7 +571,7 @@ var products = function() {
         return catalog[i + offset];
     }
 
-    function oscar0p33Path(catalog, attr) {
+    function oscar0pPath(catalog, attr) {
         var file = lookupOscar(catalog, attr.date);
         return file ? [OSCAR_PATH, file].join("/") : null;
     }
