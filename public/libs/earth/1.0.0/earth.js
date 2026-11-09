@@ -1271,6 +1271,17 @@
             view = µ.view();
             globeAgent.submit(buildGlobe, configuration.get("projection"));
         });
+
+
+        // 창 크기 변경(resize) 시 지도 및 Canvas 크기 자동 재설정
+        d3.select(window).on("resize", _.debounce(function() {
+            view = µ.view();
+            d3.selectAll(".fill-screen")
+                .attr("width", view.width)
+                .attr("height", view.height);
+            globeAgent.submit(buildGlobe, configuration.get("projection"));
+        }, 200));
+
     }
 
     function start() {
