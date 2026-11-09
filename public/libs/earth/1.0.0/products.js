@@ -13,7 +13,7 @@ var products = function() {
     var OSCAR_PATH = "/data/oscar";
     var catalogs = {
         // The OSCAR catalog is an array of file names, sorted and prefixed with yyyyMMdd. Last item is the
-        // most recent. For example: [ 20140101-abc.json, 20140106-abc.json, 20140112-abc.json, ... ]
+        // most recent. For example: {"files": [ 20140101-abc.json, 20140106-abc.json, 20140112-abc.json], "total_count": 3}
         oscar: µ.loadJson([OSCAR_PATH, "catalog.json"].join("/"))
     };
 
@@ -493,7 +493,7 @@ var products = function() {
         "currents": {
             matches: _.matches({param: "ocean", surface: "surface", level: "currents"}),
             create: function(attr) {
-                return when(catalogs.oscar).then(function(catalog) {
+                return when(catalogs.oscar).then(function(oscar) {
                     return buildProduct({
                         field: "vector",
                         type: "currents",
@@ -501,7 +501,7 @@ var products = function() {
                             name: {en: "Ocean Currents", ja: "海流"},
                             qualifier: {en: " @ Surface", ja: " @ 地上"}
                         }),
-                        paths: [oscar0pPath(catalog, attr)],
+                        paths: [oscar0pPath(oscar.files, attr)],
                         date: gfsDate(attr),
                        // date: oscarDate(catalog, attr),
                        // navigate: function(step) {return oscarStep(catalog, this.date, step);  },
