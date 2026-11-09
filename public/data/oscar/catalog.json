@@ -1,11 +1,22 @@
- [
-        "2026110400-surface-currents-oscar-1.0.json",
-        "2026110403-surface-currents-oscar-1.0.json",
-        "2026110406-surface-currents-oscar-1.0.json",
-        "2026110409-surface-currents-oscar-1.0.json",
-        "2026110412-surface-currents-oscar-1.0.json",
-        "2026110415-surface-currents-oscar-1.0.json",
-        "2026110418-surface-currents-oscar-1.0.json",
-        "2026110421-surface-currents-oscar-1.0.json",
-        "2026110500-surface-currents-oscar-1.0.json"
-]
+{
+    "files": [
+        "2026110700-surface-currents-oscar-1.0.json",
+        "2026110703-surface-currents-oscar-1.0.json",
+        "2026110706-surface-currents-oscar-1.0.json",
+        "2026110709-surface-currents-oscar-1.0.json",
+        "2026110712-surface-currents-oscar-1.0.json",
+        "2026110715-surface-currents-oscar-1.0.json",
+        "2026110718-surface-currents-oscar-1.0.json",
+        "2026110721-surface-currents-oscar-1.0.json",
+        "2026110800-surface-currents-oscar-1.0.json",
+        "2026110803-surface-currents-oscar-1.0.json",
+        "2026110806-surface-currents-oscar-1.0.json",
+        "2026110809-surface-currents-oscar-1.0.json",
+        "2026110812-surface-currents-oscar-1.0.json",
+        "2026110815-surface-currents-oscar-1.0.json",
+        "2026110818-surface-currents-oscar-1.0.json",
+        "2026110821-surface-currents-oscar-1.0.json",
+        "2026110900-surface-currents-oscar-1.0.json"
+    ],
+    "total_count": 17
+}
