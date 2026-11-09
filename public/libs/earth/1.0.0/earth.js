@@ -1014,6 +1014,8 @@
         configuration.on("change:param", function(context, mode) {
             d3.selectAll(".ocean-mode").classed("invisible", mode !== "ocean");
             d3.selectAll(".wind-mode").classed("invisible", mode !== "wind");
+
+
             switch (mode) {
                 case "wind":
                     d3.select("#nav-backward-more").attr("title", "-1 Day");
@@ -1022,45 +1024,55 @@
                     d3.select("#nav-forward-more").attr("title", "+1 Day");
                     break;
                 case "ocean":
-                    d3.select("#nav-backward-more").attr("title", "-1 Month");
-                    d3.select("#nav-backward").attr("title", "-5 Days");
-                    d3.select("#nav-forward").attr("title", "+5 Days");
-                    d3.select("#nav-forward-more").attr("title", "+1 Month");
+                    d3.select("#nav-backward-more").attr("title", "-1 Day");
+                    d3.select("#nav-backward").attr("title", "-3 Hours");
+                    d3.select("#nav-forward").attr("title", "+3 Hours");
+                    d3.select("#nav-forward-more").attr("title", "+1 Day");
                     break;
             }
         });
 
-        // Add handlers for mode buttons.
-        d3.select("#wind-mode-enable").on("click", function() {
-            if (configuration.get("param") !== "wind") {
-                configuration.save({param: "wind", surface: "surface", level: "level", overlayType: "default"});
-            }
-        });
-        configuration.on("change:param", function(x, param) {
-            d3.select("#wind-mode-enable").classed("highlighted", param === "wind");
-        });
-        d3.select("#ocean-mode-enable").on("click", function() {
-            if (configuration.get("param") !== "ocean") {
-                // When switching between modes, there may be no associated data for the current date. So we need
-                // find the closest available according to the catalog. This is not necessary if date is "current".
-                // UNDONE: this code is annoying. should be easier to get date for closest ocean product.
-                var ocean = {param: "ocean", surface: "surface", level: "currents", overlayType: "default"};
-                var attr = _.clone(configuration.attributes);
-                if (attr.date === "current") {
-                    configuration.save(ocean);
-                } else {
-                    when.all(products.productsFor(_.extend(attr, ocean))).spread(function(product) {
-                        if (product.date) {
-                            configuration.save( _.extend( ocean, µ.dateToConfig(product.date, "ocean" ) ) );
-                        }
-                    }).otherwise(report.error);
+
+        d3.select("#mode-select").on("change", function(event) {
+            // 1. 새로 선택된 값 가져오기
+            const selectedValue = this.value; // 또는 event.target.value
+
+            console.log("선택된 모드:", selectedValue); // "Air" 또는 "Ocean"출력
+
+            // 2. 값에 따른 시각화 업데이트 로직 수행
+            if (selectedValue === "Air") {
+                if (configuration.get("param") !== "wind") {
+                    configuration.save({param: "wind", surface: "surface", level: "level", overlayType: "default"});
                 }
-                stopCurrentAnimation(true);  // cleanup particle artifacts over continents
+            } else if (selectedValue === "Ocean") {
+                if (configuration.get("param") !== "ocean") {
+                    // When switching between modes, there may be no associated data for the current date. So we need
+                    // find the closest available according to the catalog. This is not necessary if date is "current".
+                    // UNDONE: this code is annoying. should be easier to get date for closest ocean product.
+                    var ocean = {param: "ocean", surface: "surface", level: "currents", overlayType: "default"};
+                    var attr = _.clone(configuration.attributes);
+                    if (attr.date === "current") {
+                        configuration.save(ocean);
+                    } else {
+                        when.all(products.productsFor(_.extend(attr, ocean))).spread(function(product) {
+                            if (product.date) {
+                                configuration.save( _.extend( ocean, µ.dateToConfig(product.date, "ocean" ) ) );
+                            }
+                        }).otherwise(report.error);
+                    }
+                    stopCurrentAnimation(true);  // cleanup particle artifacts over continents
+                }
             }
         });
+
+        // Keep mode-select synced with configuration.get("param")
         configuration.on("change:param", function(x, param) {
-            d3.select("#ocean-mode-enable").classed("highlighted", param === "ocean");
+            var selectNode = d3.select("#mode-select").node();
+            if (selectNode) {
+                selectNode.value = param === "ocean" ? "Ocean" : "Air";
+            }
         });
+
 
         // Add logic to disable buttons that are incompatible with each other.
         configuration.on("change:overlayType", function(x, ot) {
@@ -1085,27 +1097,174 @@
             d3.select("#option-show-grid").classed("highlighted", showGridPoints);
         });
 
-        // Add handlers for all wind level buttons.
-        d3.selectAll(".surface").each(function() {
-            var id = this.id, parts = id.split("-");
-            bindButtonToConfiguration("#" + id, {param: "wind", surface: parts[0], level: parts[1]});
+        // Height select element event handler and configuration listener
+        d3.select("#height-select").on("change", function() {
+            var selectedOption = this.options[this.selectedIndex];
+            var id = selectedOption.id; // e.g., "surface-level", "isobaric-1000hPa"
+            var parts = id.split("-");
+            configuration.save({param: "wind", surface: parts[0], level: parts[1]});
         });
 
-        // Add handlers for ocean animation types.
-        bindButtonToConfiguration("#animate-currents", {param: "ocean", surface: "surface", level: "currents"});
+        configuration.on("change", function(model) {
+            var surface = model.get("surface");
+            var level = model.get("level");
+            var targetId = level ? surface + "-" + level : surface;
 
-        // Add handlers for all overlay buttons.
-        products.overlayTypes.forEach(function(type) {
-            bindButtonToConfiguration("#overlay-" + type, {overlayType: type});
+            var selectNode = d3.select("#height-select").node();
+            if (selectNode) {
+                for (var i = 0; i < selectNode.options.length; i++) {
+                    if (selectNode.options[i].id === targetId) {
+                        selectNode.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
         });
-        bindButtonToConfiguration("#overlay-wind", {param: "wind", overlayType: "default"});
-        bindButtonToConfiguration("#overlay-ocean-off", {overlayType: "off"});
-        bindButtonToConfiguration("#overlay-currents", {overlayType: "default"});
+        // Overlay select element event handler and configuration listener
+        d3.select("#overlay-select").on("change", function() {
+            var value = this.value;
+            switch (value) {
+                case "None":
+                    configuration.save({overlayType: "off"});
+                    break;
+                case "WindSpeed":
+                    configuration.save({param: "wind", overlayType: "default"});
+                    break;
+                case "Temperature":
+                    configuration.save({overlayType: "temp"});
+                    break;
+                case "RelativeHumidity":
+                    configuration.save({overlayType: "relative_humidity"});
+                    break;
+            }
+        });
 
-        // Add handlers for all projection buttons.
-        globes.keys().forEach(function(p) {
-            bindButtonToConfiguration("#" + p, {projection: p, orientation: ""}, ["projection"]);
+        configuration.on("change:overlayType", function(model, overlayType) {
+            var selectNode = d3.select("#overlay-select").node();
+            if (!selectNode) return;
+
+            var value = "None";
+            if (overlayType === "default") {
+                value = "WindSpeed";
+            } else if (overlayType === "temp") {
+                value = "Temperature";
+            } else if (overlayType === "relative_humidity") {
+                value = "RelativeHumidity";
+            } else if (overlayType === "off") {
+                value = "None";
+            } else {
+                value = overlayType;
+            }
+
+            for (var i = 0; i < selectNode.options.length; i++) {
+                if (selectNode.options[i].value === value) {
+                    selectNode.selectedIndex = i;
+                    break;
+                }
+            }
         });
+
+
+        d3.select("#animate-select").on("change", function() {
+            var value = this.value;
+            switch (value) {
+                case "Currents":
+                    configuration.save({param: "ocean", surface: "surface", level: "currents"});
+                    break;
+            }
+        });
+
+        configuration.on("change", function() {
+            var selectNode = d3.select("#animate-select").node();
+            if (!selectNode) return;
+
+            var value = "Currents";
+
+            for (var i = 0; i < selectNode.options.length; i++) {
+                if (selectNode.options[i].value === value) {
+                    selectNode.selectedIndex = i;
+                    break;
+                }
+            }
+        });
+
+
+        d3.select("#overlay-select-ocean").on("change", function() {
+            var value = this.value;
+            switch (value) {
+                case "None":
+                    configuration.save({overlayType: "off"});
+                    break;
+                case "Currents":
+                    configuration.save({overlayType: "default"});
+                    break;
+            }
+        });
+
+        configuration.on("change;overlayType", function(overlayType) {
+            var selectNode = d3.select("#overlay-select-ocean").node();
+            if (!selectNode) return;
+
+            var value = "None";
+            if (overlayType === "off") {
+                value = "None";
+            } else if (overlayType === "default") {
+                value = "Currents";
+            } else {
+                value = overlayType;
+            }
+
+            for (var i = 0; i < selectNode.options.length; i++) {
+                if (selectNode.options[i].value === value) {
+                    selectNode.selectedIndex = i;
+                    break;
+                }
+            }
+        });
+
+
+        // Projection select element event handler and configuration listener
+        var projectionMap = {
+            "A": "atlantis",
+            "AE": "azimuthal_equidistant",
+            "CE": "conic_equidistant",
+            "E": "equirectangular",
+            "O": "orthographic",
+            "S": "stereographic",
+            "WB": "waterman",
+            "W3": "winkel3"
+        };
+
+        var reverseProjectionMap = {
+            "atlantis": "A",
+            "azimuthal_equidistant": "AE",
+            "conic_equidistant": "CE",
+            "equirectangular": "E",
+            "orthographic": "O",
+            "stereographic": "S",
+            "waterman": "WB",
+            "winkel3": "W3"
+        };
+
+        d3.select("#projection-select").on("change", function() {
+            var value = this.value;
+            var projKey = projectionMap[value] || value;
+            configuration.save({projection: projKey, orientation: ""});
+        });
+
+        configuration.on("change:projection", function(model, proj) {
+            var selectNode = d3.select("#projection-select").node();
+            if (!selectNode) return;
+
+            var targetValue = reverseProjectionMap[proj] || proj;
+            for (var i = 0; i < selectNode.options.length; i++) {
+                if (selectNode.options[i].value === targetValue) {
+                    selectNode.selectedIndex = i;
+                    break;
+                }
+            }
+        });
+
 
         // When touch device changes between portrait and landscape, rebuild globe using the new view size.
         d3.select(window).on("orientationchange", function() {

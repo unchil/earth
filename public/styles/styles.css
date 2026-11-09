@@ -53,7 +53,7 @@ a:hover, a:focus, .no-touch .text-button:hover, .no-touch .text-button:focus, .t
     -webkit-transition: color 125ms ease-in;
 }
 
-p.invisible, span.invisible, #sponsor.invisible {
+div.invisible, p.invisible, span.invisible, #sponsor.invisible {
     display: none;
 }
 
@@ -115,7 +115,8 @@ body {
 }
 
 #status, #location, #menu {
-    font-size: 1.75rem;
+    font-size: 18px;
+    font-weight: 600;
 }
 
 #status, #location, #earth {
@@ -128,17 +129,89 @@ body {
 }
 
 #menu {
-    background-color: rgba(5, 10, 30, 0.85);
-    border-radius: 0.5rem/0.5rem;
     overflow: hidden;
     pointer-events: all;
-
     margin-top: 1rem;
-    padding: 0.5rem 1rem 0.5rem 1rem;
+
     opacity: 1;
     max-height: 34rem;
     transition: opacity 250ms ease, max-height 250ms ease, margin-top 250ms ease;
     -webkit-transition: opacity 250ms ease, max-height 250ms ease, margin-top 250ms ease;
+
+    background: rgba(15, 20, 30, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    width: 420px;
+}
+.title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+}
+.menu-row {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.menu-row label {
+    color: #99aab5;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.menu-row span.val {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 500;
+}
+select, button {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+select:hover, button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+select option {
+    background: #111827;
+    color: #fff;
+}
+.scale-bar {
+    height: 8px;
+    width: 100%;
+    background: linear-gradient(to right, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000, #ff00ff, #ffffff);
+    border-radius: 2px;
+    margin-top: 4px;
+}
+.controls-group {
+    display: flex;
+    gap: 4px;
+}
+a {
+    font-size: 16px;
+    color: #60a5fa;
+    text-decoration: none;
+}
+a:hover {
+    text-decoration: underline;
+}
+.divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 10px 0;
 }
 
 #menu.invisible {

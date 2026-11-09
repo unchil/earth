@@ -16,10 +16,9 @@
     <link rel="shortcut icon" href="./favicon.ico"/>
     <link rel="apple-touch-icon" sizes="120x120" href="./iphone-icon.png"/>
     <link rel="apple-touch-icon" sizes="152x152" href="./ipad-icon.png"/>
+
     <link rel="stylesheet" type="text/css" href="./styles/styles.css"/>
-
     <link rel="alternate" hreflang="x-default" href="http://earth.nullschool.net/"/>
-
 </head>
 <body data-lang="en">
 
@@ -31,112 +30,176 @@
     </div>
 
 
-    <div id="details">
-        <p id="status"></p>
-        <div id="location">
-            <p>
-                <span id="location-coord"></span>
-                <span id="location-close" class="invisible text-button"> ✕ </span>
-            </p>
-            <p>
-                <span id="location-wind"></span>
-                <span id="location-wind-units" class="text-button"></span>
-            </p>
-            <p>
-                <span id="location-value"></span>
-                <span id="location-value-units" class="text-button"></span>
-            </p>
+<div id="details">
+
+    <p id="status"></p>
+
+    <div id="location">
+        <p>
+            <span id="location-coord"></span>
+            <span id="location-close" class="invisible text-button"> ✕ </span>
+        </p>
+        <p>
+            <span id="location-wind"></span>
+            <span id="location-wind-units" class="text-button"></span>
+        </p>
+        <p>
+            <span id="location-value"></span>
+            <span id="location-value-units" class="text-button"></span>
+        </p>
+    </div>
+
+    <p id="earth">
+        <button id="show-menu" title="menu">Control Panel</button>
+        <span id="progress" class="invisible"></span>
+    </p>
+
+
+    <div id="menu" class="invisible">
+
+        <div class="title">Air and Ocean on Earth</div>
+
+        <div class="menu-row">
+            <label>Date</label>
+            <span id="data-date" class="val"></span>
+            <button id="toggle-zone" ></button>
         </div>
 
-        <p id="earth">
-            <span id="show-menu" class="text-button" title="menu">earth</span>
-            <span id="progress" class="invisible"></span>
-        </p>
+        <div class="menu-row">
+            <label>Data</label>
+            <span id="data-layer" class="val"></span>
+        </div>
 
-        <div id="menu" class="invisible">
-            <p>Date | <span
-                id="data-date" class="local"></span> <span
-                id="toggle-zone" class="text-button"></span>
-            </p>
-            <p>Data | <span id="data-layer"></span></p>
-            <p><span id="scale-label">Scale | </span><canvas id="scale"></canvas></p>
-            <p>Source | <span id="data-center"></span></p>
-            <p>Control | <span
-                class="text-button" id="nav-now" title="Current Conditions">Now</span><span
-                class="text-button" id="nav-backward-more"> « </span> – <span
-                class="text-button" id="nav-backward"> ‹ </span> – <span
-                class="text-button" id="nav-forward"> › </span> – <span
-                class="text-button" id="nav-forward-more"> » </span><span
-                class="text-button" id="show-location" title="Current Position">〖◯〗</span><span
-                class="text-button" id="option-show-grid" title="Toggle Grid">Grid</span>
-            </p>
-            <p>Mode | <span
-                class="text-button" id="wind-mode-enable">Air</span> – <span
-                class="text-button" id="ocean-mode-enable">Ocean</span>
-            </p>
-            <p class="wind-mode">Height | <span
-                class="surface text-button" id="surface-level" title="Surface">Sfc</span> – <span
-                class="surface text-button" id="isobaric-1000hPa">1000</span> – <span
-                class="surface text-button" id="isobaric-850hPa">850</span> – <span
-                class="surface text-button" id="isobaric-700hPa">700</span> – <span
-                class="surface text-button" id="isobaric-500hPa">500</span> – <span
-                class="surface text-button" id="isobaric-250hPa">250</span> – <span
-                class="surface text-button" id="isobaric-70hPa">70</span> – <span
-                class="surface text-button" id="isobaric-10hPa">10</span> hPa
-            </p>
-            <p class="wind-mode">Overlay | <span
-                class="text-button" id="overlay-off">None</span> – <span
-                class="text-button" id="overlay-wind" title="Wind Speed">WindSpeed</span> – <span
-                class="text-button" id="overlay-temp" title="Temperature">Temperature</span> – <span
-                class="text-button" id="overlay-relative_humidity" title="Relative Humidity">RelativeHumidity</span>
-            </p>
+        <div class="menu-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+            <label id="scale-label">Scale</label>
+            <canvas id="scale" class="scale-bar"></canvas>
+        </div>
 
-            <p class="ocean-mode invisible">Animate | <span
-                class="text-button" id="animate-currents" title="Currents">Currents</span>
-            </p>
-            <p class="ocean-mode invisible">Overlay | <span
-                class="text-button" id="overlay-ocean-off">None</span> – <span
-                class="text-button" id="overlay-currents" title="Currents">Currents</span>
-            </p>
-            <p class="ocean-mode invisible"><span style="visibility:hidden">Overlay</span> |</p>
-            <p>Projection | <span
-                class="proj text-button" id="atlantis" title="Atlantis">A</span> – <span
-                class="proj text-button" id="azimuthal_equidistant" title="Azimuthal Equidistant">AE</span> – <span
-                class="proj text-button" id="conic_equidistant" title="Conic Equidistant">CE</span> – <span
-                class="proj text-button" id="equirectangular" title="Equirectangular">E</span> – <span
-                class="proj text-button" id="orthographic" title="Orthographic">O</span> – <span
-                class="proj text-button" id="stereographic" title="Stereographic">S</span> – <span
-                class="proj text-button" id="waterman" title="Waterman Butterfly">WB</span> – <span
-                class="proj text-button" id="winkel3" title="Winkel Tripel">W3</span>
-            </p>
+        <div class="menu-row">
+            <label>Source</label>
+            <span id="data-center" class="val" style="font-size: 11px;"></span>
+        </div>
 
-            <p>
-                <a href="about.html" class="internal-link">about</a>
-            </p>
+        <div class="menu-row">
+            <label>Nav</label>
+            <div class="controls-group">
+                <button id="nav-now" title="Now">current</button>
+                <button id="nav-backward-more" title="Backward">«</button>
+                <button id="nav-backward" title="Step Back">‹</button>
+                <button id="nav-forward" title="Step Forward">›</button>
+                <button id="nav-forward-more" title="Forward">»</button>
+            </div>
+        </div>
+
+
+        <div class="menu-row">
+            <label>Control</label>
+            <div class="controls-group">
+                <button id="show-location" title="Current Position">〖◯〗</button>
+                <button id="option-show-grid" title="Toggle Grid">Grid</button>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="menu-row" >
+            <label>Mode</label>
+            <select id="mode-select">
+                <option id="wind-mode-enable" value="Air" selected>Air</option>
+                <option id="ocean-mode-enable" value="Ocean">Ocean</option>
+            </select>
+        </div>
+
+        <div class="wind-mode">
+            <div class="menu-row ">
+                <label>Height</label>
+                <select id="height-select" >
+                    <option id="surface-level" value="Sfc" selected>Sfc</option>
+                    <option id="isobaric-1000hPa" value="1000">1000 hPa</option>
+                    <option id="isobaric-850hPa" value="850">850 hPa</option>
+                    <option id="isobaric-700hPa" value="700">700 hPa</option>
+                    <option id="isobaric-500hPa" value="500">500 hPa</option>
+                    <option id="isobaric-250hPa" value="250">250 hPa</option>
+                    <option id="isobaric-70hPa" value="70">70 hPa</option>
+                    <option id="isobaric-10hPa" value="10">10 hPa</option>
+                </select>
+            </div>
+
+            <div class="menu-row">
+                <label >Overlay</label>
+                <select id="overlay-select">
+                    <option value="None" selected>None</option>
+                    <option value="WindSpeed">WindSpeed</option>
+                    <option value="Temperature">Temperature</option>
+                    <option value="RelativeHumidity">RelativeHumidity</option>
+                </select>
+            </div>
+        </div>
+
+
+
+        <div class="ocean-mode">
+
+            <div class="menu-row ">
+                <label>Animate</label>
+                <select id="animate-select">
+                    <option value="Currents" selected>Currents</option>
+                </select>
+            </div>
+
+
+            <div class="menu-row ">
+                <label>Overlay</label>
+                <select id="overlay-select-ocean">
+                    <option value="None" >None</option>
+                    <option value="Currents" selected>Currents</option>
+                </select>
+            </div>
+        </div>
+
+
+        <div class="divider"></div>
+
+        <div class="menu-row">
+         <label>Projection</label>
+         <select id="projection-select">
+             <option value="A" selected>A</option>
+             <option value="AE">AE</option>
+             <option value="CE">CE</option>
+             <option value="E">E</option>
+             <option value="O">O</option>
+             <option value="S">S</option>
+             <option value="WB">WB</option>
+             <option value="W3">W3</option>
+         </select>
+        </div>
+
+
+        <div class="divider"></div>
+
+        <div class="menu-row">
+            <a href="about.html" id="about-link" >about</a>
         </div>
     </div>
 
 
-    <script src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.6.0/underscore-min.js" charset="utf-8"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/backbone.js/1.1.0/backbone-min.js" charset="utf-8"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/topojson/1.1.0/topojson.min.js" charset="utf-8"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.3.10/d3.min.js" charset="utf-8"></script>
+</div>
 
-<!--
-    <script src="/libs/underscore.js/1.6.0/underscore.js" charset="utf-8"></script>
-    <script src="/libs/backbone.js/1.1.0/backbone.js" charset="utf-8"></script>
-    <script src="/libs/topojson/1.1.0/topojson.js" charset="utf-8"></script>
-    <script src="/libs/d3/3.3.10/d3.js" charset="utf-8"></script>
--->
 
-    <script src="./libs/d3.geo/0.0.0/d3.geo.projection.v0.min.js" charset="utf-8"></script>
-    <script src="./libs/d3.geo/0.0.0/d3.geo.polyhedron.v0.min.js" charset="utf-8"></script>
-    <script src="./libs/when/2.6.0/when.js" charset="utf-8"></script>
+<script src="/libs/underscore.js/1.6.0/underscore.js" charset="utf-8"></script>
+<script src="/libs/backbone.js/1.1.0/backbone.js" charset="utf-8"></script>
+<script src="/libs/topojson/1.1.0/topojson.js" charset="utf-8"></script>
+<script src="/libs/d3/3.3.10/d3.js" charset="utf-8"></script>
 
-    <script src="./libs/earth/1.0.0/micro.js" charset="utf-8"></script>
-    <script src="./libs/earth/1.0.0/globes.js" charset="utf-8"></script>
-    <script src="./libs/earth/1.0.0/products.js" charset="utf-8"></script>
-    <script src="./libs/earth/1.0.0/earth.js" charset="utf-8"></script>
+
+<script src="./libs/d3.geo/0.0.0/d3.geo.projection.v0.min.js" charset="utf-8"></script>
+<script src="./libs/d3.geo/0.0.0/d3.geo.polyhedron.v0.min.js" charset="utf-8"></script>
+<script src="./libs/when/2.6.0/when.js" charset="utf-8"></script>
+
+<script src="./libs/earth/1.0.0/micro.js" charset="utf-8"></script>
+<script src="./libs/earth/1.0.0/globes.js" charset="utf-8"></script>
+<script src="./libs/earth/1.0.0/products.js" charset="utf-8"></script>
+<script src="./libs/earth/1.0.0/earth.js" charset="utf-8"></script>
 
 </body>
 </html>
