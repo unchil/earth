@@ -681,15 +681,54 @@
                 g.fillRect(i, 0, 1, c.height);
             }
 
-            // Show tooltip on hover.
+            // 커스텀 툴팁 요소 생성 (없으면 생성)
+            var tooltip = d3.select("#scale-tooltip");
+            if (tooltip.empty()) {
+                tooltip = d3.select("body").append("div")
+                    .attr("id", "scale-tooltip")
+                    .style("position", "absolute")
+                    .style("padding", "4px 8px")
+                    .style("background", "rgba(0, 0, 0, 0.75)")
+                    .style("color", "#fff")
+                    .style("border-radius", "3px")
+                    .style("font-size", "11px")
+                    .style("pointer-events", "none")
+                    .style("display", "none")
+                    .style("z-index", "1000");
+            }
+
+            // Show custom tooltip on hover.
             colorBar.on("mousemove", function() {
                 var x = d3.mouse(this)[0];
-                var pct = µ.clamp((Math.round(x) - 2) / (n - 2), 0, 1);
+                var actualWidth = this.offsetWidth || c.width;
+                var pct = µ.clamp(x / actualWidth, 0, 1);
                 var value = µ.spread(pct, bounds[0], bounds[1]);
                 var elementId = grid.type === "wind" ? "#location-wind-units" : "#location-value-units";
                 var units = createUnitToggle(elementId, grid).value();
-                colorBar.attr("title", µ.formatScalar(value, units) + " " + units.label);
+
+                tooltip
+                    .style("display", "block")
+                    .style("left", (d3.event.pageX + 10) + "px")
+                    .style("top", (d3.event.pageY - 25) + "px")
+                    .text(µ.formatScalar(value, units) + " " + units.label);
             });
+            colorBar.on("mouseout", function() {
+                tooltip.style("display", "none");
+            });
+
+            // Click event on scale bar to display value in #scale-info
+            /*
+            colorBar.on("click", function() {
+                var x = d3.mouse(this)[0];
+                var actualWidth = this.offsetWidth || c.width;
+                var pct = µ.clamp(x / actualWidth, 0, 1);
+                var value = µ.spread(pct, bounds[0], bounds[1]);
+                var elementId = grid.type === "wind" ? "#location-wind-units" : "#location-value-units";
+                var units = createUnitToggle(elementId, grid).value();
+                d3.select("#scale-info").text(µ.formatScalar(value, units) + " " + units.label);
+            });
+             */
+
         }
     }
 
