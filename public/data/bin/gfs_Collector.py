@@ -8,6 +8,7 @@ import urllib.parse
 import urllib.request
 import ssl
 
+
 # SSL 인증서 검증 비활성화 설정 추가
 ssl._create_default_https_context = ssl._create_unverified_context
 
