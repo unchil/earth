@@ -1,30 +1,19 @@
 <!DOCTYPE html>
-<html itemscope itemtype="http://schema.org/Map" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb#">
+<html itemscope itemtype="http://schema.org/Map" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb#"  lang="en">
 <head>
-    <meta charset="utf-8"/>
-    <title>earth :: an animated map of global wind and weather</title>
-
+    <title>earth</title>
     <link rel="stylesheet" type="text/css" href="./styles/styles.css"/>
-
-
 </head>
 <body data-lang="en">
-
     <div id="display">
         <svg id="map" class="fill-screen" xmlns="http://www.w3.org/2000/svg" version="1.1"></svg>
         <canvas id="animation" class="fill-screen"></canvas>
         <canvas id="overlay" class="fill-screen"></canvas>
         <svg id="foreground" class="fill-screen" xmlns="http://www.w3.org/2000/svg" version="1.1"></svg>
     </div>
-
-
     <div id="details">
-
-
         <p id="status"></p>
         <p id="progress" class="invisible"></p>
-        <!--<div id="scale-info"></div>-->
-
         <div id="location">
             <p>
                 <span id="location-coord"></span>
@@ -39,160 +28,118 @@
                 <span id="location-value-units" class="text-button"></span>
             </p>
         </div>
-
-
-
-    <div id="menu" class="invisible">
-
-        <div class="title">Air and Ocean on Earth</div>
-
-        <div class="menu-row">
-            <label>Date</label>
-            <span id="data-date" class="val"></span>
-            <button id="toggle-zone" ></button>
-        </div>
-
-        <div class="menu-row">
-            <label>Data</label>
-            <span id="data-layer" class="val"></span>
-        </div>
-
-        <div class="menu-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-            <label id="scale-label">Scale</label>
-            <canvas id="scale" class="scale-bar"></canvas>
-        </div>
-
-        <div class="menu-row">
-            <label>Source</label>
-            <span id="data-center" class="val" style="font-size: 11px;"></span>
-        </div>
-
-        <div class="menu-row">
-            <label>Nav</label>
-            <div class="controls-group">
-                <button id="nav-backward-more" title="Backward">«</button>
-                <button id="nav-backward" title="Step Back">‹</button>
-                <button id="nav-now" title="Current">⟳</button>
-                <button id="nav-forward" title="Step Forward">›</button>
-                <button id="nav-forward-more" title="Forward">»</button>
-            </div>
-        </div>
-
-
-
-        <div class="menu-row">
-            <label>Control</label>
-            <div class="controls-group">
-                <button id="show-location" title="Current Position">⌖</button>
-                <button id="option-show-grid" title="Toggle Grid">🌐</button>
-            </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="menu-row" >
-            <label>Mode</label>
-            <select id="mode-select">
-                <option id="wind-mode-enable" value="Air" selected>Air</option>
-                <option id="ocean-mode-enable" value="Ocean">Ocean</option>
-            </select>
-        </div>
-
-        <div class="wind-mode">
-            <div class="menu-row ">
-                <label>Height</label>
-                <select id="height-select" >
-                    <option id="surface-level" value="Sfc" selected>Sfc</option>
-                    <option id="isobaric-1000hPa" value="1000">1000 hPa</option>
-                    <option id="isobaric-850hPa" value="850">850 hPa</option>
-                    <option id="isobaric-700hPa" value="700">700 hPa</option>
-                    <option id="isobaric-500hPa" value="500">500 hPa</option>
-                    <option id="isobaric-250hPa" value="250">250 hPa</option>
-                    <option id="isobaric-70hPa" value="70">70 hPa</option>
-                    <option id="isobaric-10hPa" value="10">10 hPa</option>
-                </select>
-            </div>
-
+        <div id="menu" class="invisible">
+            <div class="title">Air and Ocean on Earth</div>
             <div class="menu-row">
-                <label >Overlay</label>
-                <select id="overlay-select">
-                    <option value="None" selected>None</option>
-                    <option value="WindSpeed">WindSpeed</option>
-                    <option value="Temperature">Temperature</option>
-                    <option value="RelativeHumidity">RelativeHumidity</option>
+                <label>Date</label>
+                <span id="data-date" class="val"></span>
+                <button id="toggle-zone" ></button>
+            </div>
+            <div class="menu-row">
+                <label>Data</label>
+                <span id="data-layer" class="val"></span>
+            </div>
+            <div class="menu-row menu-row-column" >
+                <label id="scale-label">Scale</label>
+                <canvas id="scale" class="scale-bar"></canvas>
+            </div>
+            <div class="menu-row">
+                <label>Source</label>
+                <span id="data-center" class="val" ></span>
+            </div>
+            <div class="menu-row">
+                <label>Nav</label>
+                <div class="controls-group">
+                    <button id="nav-backward-more" title="Backward">«</button>
+                    <button id="nav-backward" title="Step Back">‹</button>
+                    <button id="nav-now" title="Current">⟳</button>
+                    <button id="nav-forward" title="Step Forward">›</button>
+                    <button id="nav-forward-more" title="Forward">»</button>
+                </div>
+            </div>
+            <div class="menu-row">
+                <label>Control</label>
+                <div class="controls-group">
+                    <button id="show-location" title="Current Position">⌖</button>
+                    <button id="option-show-grid" title="Toggle Grid">🌐</button>
+                </div>
+            </div>
+            <div class="divider"></div>
+            <div class="menu-row" >
+                <label for="mode-select">Mode</label><select id="mode-select">
+                    <option id="wind-mode-enable" value="Air" selected>Air</option>
+                    <option id="ocean-mode-enable" value="Ocean">Ocean</option>
                 </select>
             </div>
-        </div>
-
-
-
-        <div class="ocean-mode">
-
-            <div class="menu-row ">
-                <label>Animate</label>
-                <select id="animate-select">
-                    <option value="Currents" selected>Currents</option>
-                </select>
+            <div class="wind-mode">
+                <div class="menu-row ">
+                    <label for="height-select">Height</label><select id="height-select" >
+                        <option id="surface-level" value="Sfc" selected>Sfc</option>
+                        <option id="isobaric-1000hPa" value="1000">1000 hPa</option>
+                        <option id="isobaric-850hPa" value="850">850 hPa</option>
+                        <option id="isobaric-700hPa" value="700">700 hPa</option>
+                        <option id="isobaric-500hPa" value="500">500 hPa</option>
+                        <option id="isobaric-250hPa" value="250">250 hPa</option>
+                        <option id="isobaric-70hPa" value="70">70 hPa</option>
+                        <option id="isobaric-10hPa" value="10">10 hPa</option>
+                    </select>
+                </div>
+                <div class="menu-row">
+                    <label for="overlay-select">Overlay</label><select id="overlay-select">
+                        <option value="None" selected>None</option>
+                        <option value="WindSpeed">WindSpeed</option>
+                        <option value="Temperature">Temperature</option>
+                        <option value="RelativeHumidity">RelativeHumidity</option>
+                    </select>
+                </div>
             </div>
-
-
-            <div class="menu-row ">
-                <label>Overlay</label>
-                <select id="overlay-select-ocean">
-                    <option value="None" >None</option>
-                    <option value="Currents" selected>Currents</option>
-                </select>
+            <div class="ocean-mode">
+                <div class="menu-row ">
+                    <label for="animate-select">Animate</label><select id="animate-select">
+                        <option value="Currents" selected>Currents</option>
+                    </select>
+                </div>
+                <div class="menu-row ">
+                    <label for="overlay-select-ocean">Overlay</label><select id="overlay-select-ocean">
+                        <option value="None" >None</option>
+                        <option value="Currents" selected>Currents</option>
+                    </select>
+                </div>
+            </div>
+            <div class="divider"></div>
+            <div class="menu-row">
+                <label for="projection-select">Projection</label><select id="projection-select">
+                 <option value="A" selected>atlantis</option>
+                 <option value="AE">azimuthal_equidistant</option>
+                 <option value="CE">conic_equidistant</option>
+                 <option value="E">equirectangular</option>
+                 <option value="O">orthographic</option>
+                 <option value="S">stereographic</option>
+                 <option value="WB">waterman</option>
+                 <option value="W3">winkel3</option>
+             </select>
+            </div>
+            <div class="divider"></div>
+            <div class="menu-row">
+                <a href="about.html" id="about-link" >about</a>
             </div>
         </div>
-
-
-        <div class="divider"></div>
-
-        <div class="menu-row">
-         <label>Projection</label>
-         <select id="projection-select">
-             <option value="A" selected>atlantis</option>
-             <option value="AE">azimuthal_equidistant</option>
-             <option value="CE">conic_equidistant</option>
-             <option value="E">equirectangular</option>
-             <option value="O">orthographic</option>
-             <option value="S">stereographic</option>
-             <option value="WB">waterman</option>
-             <option value="W3">winkel3</option>
-         </select>
-        </div>
-
-
-        <div class="divider"></div>
-
-        <div class="menu-row">
-            <a href="about.html" id="about-link" >about</a>
-        </div>
+        <button id="show-menu" title="menu">Control Panel</button>
     </div>
 
+    <script src="./libs/underscore.js/1.6.0/underscore.js" charset="utf-8"></script>
+    <script src="./libs/backbone.js/1.1.0/backbone.js" charset="utf-8"></script>
+    <script src="./libs/topojson/1.1.0/topojson.js" charset="utf-8"></script>
 
+    <script src="./libs/d3/3.3.10/d3.js" charset="utf-8"></script>
+    <script src="./libs/d3.geo/0.0.0/d3.geo.projection.v0.min.js" charset="utf-8"></script>
+    <script src="./libs/d3.geo/0.0.0/d3.geo.polyhedron.v0.min.js" charset="utf-8"></script>
+    <script src="./libs/when/2.6.0/when.js" charset="utf-8"></script>
 
-    <button id="show-menu" title="menu">Control Panel</button>
-
-
-
-</div>
-
-
-<script src="./libs/underscore.js/1.6.0/underscore.js" charset="utf-8"></script>
-<script src="./libs/backbone.js/1.1.0/backbone.js" charset="utf-8"></script>
-<script src="./libs/topojson/1.1.0/topojson.js" charset="utf-8"></script>
-<script src="./libs/d3/3.3.10/d3.js" charset="utf-8"></script>
-
-
-<script src="./libs/d3.geo/0.0.0/d3.geo.projection.v0.min.js" charset="utf-8"></script>
-<script src="./libs/d3.geo/0.0.0/d3.geo.polyhedron.v0.min.js" charset="utf-8"></script>
-<script src="./libs/when/2.6.0/when.js" charset="utf-8"></script>
-
-<script src="./libs/earth/1.0.0/micro.js" charset="utf-8"></script>
-<script src="./libs/earth/1.0.0/globes.js" charset="utf-8"></script>
-<script src="./libs/earth/1.0.0/products.js" charset="utf-8"></script>
-<script src="./libs/earth/1.0.0/earth.js" charset="utf-8"></script>
+    <script src="./libs/earth/1.0.0/micro.js" charset="utf-8"></script>
+    <script src="./libs/earth/1.0.0/globes.js" charset="utf-8"></script>
+    <script src="./libs/earth/1.0.0/products.js" charset="utf-8"></script>
+    <script src="./libs/earth/1.0.0/earth.js" charset="utf-8"></script>
 
 </body>
 </html>

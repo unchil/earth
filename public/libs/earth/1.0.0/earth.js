@@ -917,6 +917,7 @@
     function init() {
         report.status("Initializing...");
 
+        /*
         d3.select("#sponsor-link")
             .attr("target", µ.isEmbeddedInIFrame() ? "_new" : null)
             .on("click", reportSponsorClick.bind(null, "click"))
@@ -924,21 +925,25 @@
         d3.select("#sponsor-hide").on("click", function() {
             d3.select("#sponsor").classed("invisible", true);
         });
+         */
 
         d3.selectAll(".fill-screen").attr("width", view.width).attr("height", view.height);
         // Adjust size of the scale canvas to fill the width of the menu to the right of the label.
-        var label = d3.select("#scale-label").node();
+
+       // var label = d3.select("#scale-label").node();
         d3.select("#scale")
-            .attr("width", (d3.select("#menu").node().offsetWidth - label.offsetWidth) * 0.97)
-            .attr("height", label.offsetHeight / 2);
+            //.attr("width", (d3.select("#menu").node().offsetWidth - label.offsetWidth) * 0.97)
+            //.attr("height", label.offsetHeight / 2);
+            //  class menu-row-column 적용
+            .attr("width", (d3.select("#menu").node().offsetWidth ) * 0.97)
+
 
         d3.select("#show-menu").on("click", function() {
             d3.select("#menu").classed("invisible", !d3.select("#menu").classed("invisible"));
             /*
             if (µ.isEmbeddedInIFrame()) {
                 window.open("http://earth.nullschool.net/" + window.location.hash, "_blank");
-            }
-            else {
+            } else {
                 d3.select("#menu").classed("invisible", !d3.select("#menu").classed("invisible"));
             }
             */
