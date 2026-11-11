@@ -1,6 +1,5 @@
 /node_modules/
 /.idea/
-/public/data/weather/current/
-/public/data/weather/2026/
 /public/data/oscar/
 /public/data/download/
+/public/data/weather/
