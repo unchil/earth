@@ -23,7 +23,6 @@ def fetch_url(url):
         print(f"URL 요청 실패 ({url}): {e}")
         return f"URL 요청 실패 ({url}): {e}"
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--maxH", type=int, nargs=1, default=72, help="Maximum forecast duration (default: 72)")
