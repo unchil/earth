@@ -9,11 +9,10 @@ import urllib.request
 import ssl
 import sqlite3
 import json
+import argparse
 
 # SSL 인증서 검증 비활성화 설정 추가
 ssl._create_default_https_context = ssl._create_unverified_context
-
-
 
 def fetch_url(url):
     try:
@@ -26,25 +25,19 @@ def fetch_url(url):
 
 
 def main():
-    # 사용법: python gfs_Collector_3.py [최대예보시간(기본 72)] [최대재시도횟수(기본 3)]
-    max_hour = 72
-    max_retry = 3
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--maxH", type=int, nargs=1, default=72, help="Maximum forecast duration (default: 72)")
+    parser.add_argument("--retry", type=int, nargs=1, default=3, help="Maximum number of retries (default: 3)")
+    parser.add_argument("--useDb", type=str, default="N", help="Whether a database insert occurred(default: N)")
 
-    if len(sys.argv) > 1:
-        try:
-            max_hour = int(sys.argv[1])
-        except ValueError:
-            print(f"사용법: python {sys.argv[0]} [최대예보시간] [최대재시도횟수]")
-            sys.exit(1)
+    args = parser.parse_args()
 
-    if len(sys.argv) > 2:
-        try:
-            max_retry = int(sys.argv[2])
-        except ValueError:
-            print(f"사용법: python {sys.argv[0]} [최대예보시간] [최대재시도횟수]")
-            sys.exit(1)
+    max_hour = args.maxH
+    max_retry = args.retry
+    useDb = args.useDb
 
-    print(f"=== 입력된 최대예보시간: {max_hour}, 최대재시도횟수: {max_retry} ===")
+    print(f"사용법: python {sys.argv[0]} [최대예보시간] [최대재시도횟수]  [데이터베이스 사용여부]")
+    print(f"입력된 옵션: maxH[{max_hour}], retry[{max_retry}], useDb[{useDb}]")
 
     # NOMADS GFS 1.0도 기본 URL 및 설정
     BASE_URL = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl"
@@ -179,6 +172,8 @@ def main():
 
     print("=== 모든 데이터 다운로드 완료 ===")
 
+
+
     # 4. GRIB2 디코딩 단계
     DIR_ATMOS = Path("../weather")
 
@@ -209,30 +204,11 @@ def main():
     # 기준 시각 (UTC)
     base_dt = datetime.strptime(f"{date_str}{latest_cycle}", "%Y%m%d%H")
 
-
-    conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
-    cursor = conn.cursor()
-    """
-    데이터 구조: 리스트([]) 안에 튜플(()) 형태의 데이터들이 담겨 있어야 합니다. (딕셔너리 형태의 데이터 리스트도 지원됩니다.)
-    users_data = [
-        ('이영희', 28),
-        ('박민수', 35),
-        ('정수진', 22),
-        ('오나라', 40)
-    ]
-    Batch Insert 실행 (executemany 사용)
-    첫 번째 인자에는 SQL 쿼리, 두 번째 인자에는 데이터 리스트(튜플 시퀀스)를 전달합니다.
-
-    cursor.executemany("INSERT INTO users (name, age) VALUES (?, ?)", users_data)
-    conn.commit()
-    print(f">> 총 {cursor.rowcount}개의 데이터가 일괄 삽입되었습니다.")
-    conn.close()
-
-    batch_data = [ (YYYYMMDDHH, mode, type, surface, level, grib2json ), ...]
-    current_data = [ (YYYYMMDDHH, mode, type, surface, level, grib2json ), ...]
-    """
-    batch_data = []
-    current_data = []
+    if(useDb == "Y"):
+        conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
+        cursor = conn.cursor()
+        batch_data = []
+        current_data = []
 
     for src_file in src_files:
         if not src_file.is_file():
@@ -287,16 +263,17 @@ def main():
                     print(f" 오류: grib2json 파일을 찾을 수 없습니다. 프로그램을 종료합니다. 경로: {e.filename} ")
                     sys.exit(1)
                 else:
-                    print("에러 없이 정상 실행되었습니다. DB Insert 를 위한 튜플 생성")
-                    with open(target_file_path, "r", encoding="utf-8") as f:
-                        try:
-                            data = json.load(f)
-                            json_string = json.dumps(data)
-                            batch_data.append( (target_dt.strftime("%Y%m%d%H"), "air", var, surface, level, json_string ) )
-                            if f_num == "000":
-                                current_data.append( (target_dt.strftime("%Y%m%d%H"), "air", var, surface, level, json_string ) )
-                        except json.JSONDecodeError as err:
-                            print(f"  [오류] JSON 파싱 실패 ({json_path}): {err}")
+                    if(useDb == "Y"):
+                        print("DB Insert 를 위한 튜플 생성")
+                        with open(target_file_path, "r", encoding="utf-8") as f:
+                            try:
+                                data = json.load(f)
+                                json_string = json.dumps(data)
+                                batch_data.append( (target_dt.strftime("%Y%m%d%H"), "air", var, surface, level, json_string ) )
+                                if f_num == "000":
+                                    current_data.append( (target_dt.strftime("%Y%m%d%H"), "air", var, surface, level, json_string ) )
+                            except json.JSONDecodeError as err:
+                                print(f"  [오류] JSON 파싱 실패 ({json_path}): {err}")
 
 
                 # 1000hPa 파일 복사 처리
@@ -321,8 +298,8 @@ def main():
                         )
                         shutil.copy(target_file_path, current_surface_path)
 
+    if(useDb == "Y"):
         try:
-
             query_batch = '''INSERT INTO Earth_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(forecast_time, mode, type, surface, level ) DO UPDATE SET
                 grib2json = excluded.grib2json'''
@@ -336,6 +313,8 @@ def main():
             print(f">> 총 {cursor.rowcount}개의 데이터가 일괄 삽입되었습니다.")
         except Exception as e:
             print(f"데이터 삽입 중 오류 발생: {e}")
+        finally:
+            conn.close()
 
     print("=== 모든 데이터 디코딩 완료 ===")
 
