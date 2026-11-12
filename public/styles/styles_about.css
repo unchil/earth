@@ -61,38 +61,6 @@
     -webkit-user-select: none;
 }
 
-@font-face {
-    font-family: MPLUS1-base;
-    src: url("./styles/fonts/MPLUS1-Regular-base~e56fa902.woff2");
-    font-weight: 400;
-    unicode-range: U+0,U+9-A,U+D,U+20-7E,U+A0-A1,U+AB,U+B0-B1,U+B4-B5,U+BA-BB,U+BD,U+C0-C1,U+C9,U+CD,U+D8,U+DA,U+E0-E4,U+E7-EA,U+ED-EE,U+F1,U+F3-F5,U+F8-FA,U+FD,U+10C-10D,U+10F,U+11B,U+11F,U+131,U+142,U+144,U+148,U+153,U+159,U+160-161,U+165,U+16F,U+17D-17E,U+192,U+2DD,U+2013-2014,U+2018-2019,U+201C-201D;
-}
-
-@font-face {
-    font-family: MPLUS1-base;
-    src: url("./styles/fonts/MPLUS1-SemiBold-base~bcdc726c.woff2");
-    font-weight: 600;
-    unicode-range: U+0,U+9-A,U+D,U+20-7E,U+A0-A1,U+AB,U+B0-B1,U+B4-B5,U+BA-BB,U+BD,U+C0-C1,U+C9,U+CD,U+D8,U+DA,U+E0-E4,U+E7-EA,U+ED-EE,U+F1,U+F3-F5,U+F8-FA,U+FD,U+10C-10D,U+10F,U+11B,U+11F,U+131,U+142,U+144,U+148,U+153,U+159,U+160-161,U+165,U+16F,U+17D-17E,U+192,U+2DD,U+2013-2014,U+2018-2019,U+201C-201D;
-}
-
-@font-face {
-    font-family: NotoSans-base;
-    src: url("./styles/fonts/NotoSans-Regular-base~d68198ad.woff2");
-    font-weight: 400;
-    unicode-range: U+0,U+9-A,U+D,U+20,U+A0,U+B2-B3,U+B9,U+394,U+39F,U+3B3-3B5,U+3B8,U+3BB,U+3C0-3C1,U+3C4,U+3C6,U+410-418,U+41A,U+41C-428,U+42D,U+42F-44F,U+451,U+901-903,U+905-90A,U+90F-911,U+913-918,U+91A-928,U+92A-930,U+932,U+935-939,U+93C,U+93E-943,U+947-949,U+94B-94D,U+964,U+2011,U+2032-2033,U+2070,U+2074-2079,U+207B;
-}
-
-@font-face {
-    font-family: NotoSans-base;
-    src: url("./styles/fonts/NotoSans-SemiBold-base~d85f0872.woff2");
-    font-weight: 600;
-    unicode-range: U+0,U+9-A,U+D,U+20,U+A0,U+B2-B3,U+B9,U+394,U+39F,U+3B3-3B5,U+3B8,U+3BB,U+3C0-3C1,U+3C4,U+3C6,U+410-418,U+41A,U+41C-428,U+42D,U+42F-44F,U+451,U+901-903,U+905-90A,U+90F-911,U+913-918,U+91A-928,U+92A-930,U+932,U+935-939,U+93C,U+93E-943,U+947-949,U+94B-94D,U+964,U+2011,U+2032-2033,U+2070,U+2074-2079,U+207B;
-}
-
-[lang] {
-    font-family: MPLUS1-base,NotoSans-base,system-ui,sans-serif;
-}
-
 :root {
     font-size: var(--font-size);
 
