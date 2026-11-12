@@ -89,9 +89,6 @@ def main():
     for l in LEVELS:
         params_dict[f"lev_{l}"] = "on"
 
-
-    """
-
     # 다운로드 디렉터리 초기화
     if DIR_DOWNLOAD.exists():
         shutil.rmtree(DIR_DOWNLOAD)
@@ -181,10 +178,6 @@ def main():
         i += 3
 
     print("=== 모든 데이터 다운로드 완료 ===")
-    
-    
-    """
-
 
     # 4. GRIB2 디코딩 단계
     DIR_ATMOS = Path("../weather")
@@ -204,8 +197,6 @@ def main():
         ("0", "Temperature", "0", "temperature"),
         ("1", "Moisture", "1", "relative_humidity"),
     ]
-
-
 
 
     print("=== grib2json 디코딩 시작 ===")
