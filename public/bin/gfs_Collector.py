@@ -302,13 +302,20 @@ def main():
             query_batch = '''INSERT INTO Earth_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(forecast_time, mode, type, surface, level ) DO UPDATE SET
                 grib2json = excluded.grib2json'''
+
+            # db insert job
+            cursor.executemany(query_batch, batch_data)
+            conn.commit()
+
+            cursor.execute("DELETE FROM Earth_Current_Tbl")
+            conn.commit()
+
             query_current = '''INSERT INTO Earth_Current_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(forecast_time, mode, type, surface, level ) DO UPDATE SET
                 grib2json = excluded.grib2json '''
-            # db insert job
-            cursor.executemany(query_batch, batch_data)
             cursor.executemany(query_current, current_data)
             conn.commit()
+
             print(f">> 총 {cursor.rowcount}개의 데이터가 일괄 삽입되었습니다.")
         except Exception as e:
             print(f"데이터 삽입 중 오류 발생: {e}")
