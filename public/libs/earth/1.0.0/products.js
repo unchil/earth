@@ -34,17 +34,19 @@ var products = function() {
         }, overrides);
     }
 
-    /**
-     * @param attr
-     * @param {String} type
-     * @param {String?} surface
-     * @param {String?} level
-     * @returns {String}
-     */
+
     function gfs1p0degPath(attr, type, surface, level) {
         var dir = attr.date, stamp = dir === "current" ? "current" : attr.hour;
         var file = [stamp, type, surface, level, "gfs", "1.0"].filter(µ.isValue).join("-") + ".json";
         return [WEATHER_PATH, dir, file].join("/");
+    }
+
+    function gfsDataUrl(attr, type, surface, level) {
+        var baseUrl = "http://192.168.55.6:7788/earth/env";
+        var mode =  attr.param === 'wind' ? 'air' : 'ocean'
+        var dir = attr.date, stamp = dir === "current" ? "current" :attr.date.replace(/\//g, "") + attr.hour.slice(0, 2);
+        var url = `${baseUrl}?time=${stamp}&mode=${mode}&type=${type}&surface=${surface === "surface" ? "isobaric" : surface}&level=${level == "level" ? "1000hPa" : level}`
+        return url;
     }
 
     function gfsDate(attr) {
@@ -119,7 +121,8 @@ var products = function() {
                         name: {en: "Wind", ja: "風速"},
                         qualifier: {en: " @ " + describeSurface(attr), ja: " @ " + describeSurfaceJa(attr)}
                     }),
-                    paths: [gfs1p0degPath(attr, "wind", attr.surface, attr.level)],
+                 //   paths: [gfs1p0degPath(attr, "wind", attr.surface, attr.level)],
+                    paths: [gfsDataUrl(attr, "wind", attr.surface, attr.level)],
                     date: gfsDate(attr),
                     builder: function(file) {
                         var uData = file[0].data, vData = file[1].data;
@@ -157,7 +160,8 @@ var products = function() {
                         name: {en: "Temp", ja: "気温"},
                         qualifier: {en: " @ " + describeSurface(attr), ja: " @ " + describeSurfaceJa(attr)}
                     }),
-                    paths: [gfs1p0degPath(attr, "temperature", attr.surface, attr.level)],
+                    //paths: [gfs1p0degPath(attr, "temperature", attr.surface, attr.level)],
+                    paths: [gfsDataUrl(attr, "temperature", attr.surface, attr.level)],
                     date: gfsDate(attr),
                     builder: function(file) {
                         var record = file[0], data = record.data;
@@ -204,7 +208,8 @@ var products = function() {
                         name: {en: "Relative Humidity", ja: "相対湿度"},
                         qualifier: {en: " @ " + describeSurface(attr), ja: " @ " + describeSurfaceJa(attr)}
                     }),
-                    paths: [gfs1p0degPath(attr, "relative_humidity", attr.surface, attr.level)],
+                  //  paths: [gfs1p0degPath(attr, "relative_humidity", attr.surface, attr.level)],
+                    paths: [gfsDataUrl(attr, "relative_humidity", attr.surface, attr.level)],
                     date: gfsDate(attr),
                     /*
                     builder: function(file) {
