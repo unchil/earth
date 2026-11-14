@@ -46,7 +46,8 @@ var products = function() {
             url = `${ENDPOINT}?time=${stamp}&mode=${mode}&type=${type}&surface=${surface}&level=${level}`;
             return url;
         }else{
-            stamp = attr.date === "current" ? "current" : attr.date.replace(/\//g, "") + attr.hour.slice(0, 2);
+            var prefix = µ.ymdRedelimit(attr.date, "/", "", attr.param);
+            stamp = attr.date === "current" ? "current" : prefix;
             surface =  "surface";
             level = "level";
             url = `${ENDPOINT}?time=${stamp}&mode=${mode}&type=${type}&surface=${surface}&level=${level}`;
@@ -237,6 +238,8 @@ var products = function() {
                 });
             }
         },
+
+        /*
 
         "direction_of_wind_wave": {
             matches: _.matches({param: "wind", overlayType: "direction_of_wind_wave"}),
@@ -485,20 +488,24 @@ var products = function() {
             }
         },
 
+
+         */
+
+
         "currents": {
             matches: _.matches({param: "ocean", surface: "surface", level: "currents"}),
             create: function(attr) {
                 return when(catalogs.oscar).then(function(oscar) {
                     return buildProduct({
+                        date: gfsDate(attr),
                         field: "vector",
                         type: "currents",
                         description: localize({
                             name: {en: "Ocean Currents"},
                             qualifier: {en: " @ Surface"}
                         }),
-                        paths: [oscar0pPath(oscar.files, attr)],
-                      //  paths: [ earthDataServiceUrl(attr, 'currents') ],
-                        date: gfsDate(attr),
+                        paths: [ earthDataServiceUrl(attr, 'currents') ],
+
                         builder: function(file) {
                             var uData = file[0].data, vData = file[1].data;
                             return {
