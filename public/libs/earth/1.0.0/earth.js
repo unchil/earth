@@ -1,11 +1,3 @@
-/**
- * earth - a project to visualize global air data.
- *
- * Copyright (c) 2014 Cameron Beccario
- * The MIT License - http://opensource.org/licenses/MIT
- *
- * https://github.com/cambecc/earth
- */
 (function() {
     "use strict";
 
@@ -34,9 +26,7 @@
     var view = µ.view();
     var log = µ.log();
 
-    /**
-     * An object to display various types of messages to the user.
-     */
+
     var report = function() {
         var s = d3.select("#status"), p = d3.select("#progress"), total = REMAINING.length;
         return {
@@ -70,8 +60,6 @@
         return µ.newAgent().on({"reject": report.error, "fail": report.error});
     }
 
-    // Construct the page's main internal components:
-
     var configuration =
         µ.buildConfiguration(globes, products.overlayTypes);  // holds the page's current configuration settings
     var inputController = buildInputController();             // interprets drag/zoom operations
@@ -83,28 +71,7 @@
     var animatorAgent = newAgent();  // the wind animator
     var overlayAgent = newAgent();   // color overlay over the animation
 
-    /**
-     * The input controller is an object that translates move operations (drag and/or zoom) into mutations of the
-     * current globe's projection, and emits events so other page components can react to these move operations.
-     *
-     * D3's built-in Zoom behavior is used to bind to the document's drag/zoom events, and the input controller
-     * interprets D3's events as move operations on the globe. This method is complicated due to the complex
-     * event behavior that occurs during drag and zoom.
-     *
-     * D3 move operations usually occur as "zoomstart" -> ("zoom")* -> "zoomend" event chain. During "zoom" events
-     * the scale and mouse may change, implying a zoom or drag operation accordingly. These operations are quite
-     * noisy. What should otherwise be one smooth continuous zoom is usually comprised of several "zoomstart" ->
-     * "zoom" -> "zoomend" event chains. A debouncer is used to eliminate the noise by waiting a short period of
-     * time to ensure the user has finished the move operation.
-     *
-     * The "zoom" events may not occur; a simple click operation occurs as: "zoomstart" -> "zoomend". There is
-     * additional logic for other corner cases, such as spurious drags which move the globe just a few pixels
-     * (most likely unintentional), and the tendency for some touch devices to issue events out of order:
-     * "zoom" -> "zoomstart" -> "zoomend".
-     *
-     * This object emits clean "moveStart" -> ("move")* -> "moveEnd" events for move operations, and "click" events
-     * for normal clicks. Spurious moves emit no events.
-     */
+
     function buildInputController() {
         var globe, op = null;
 
@@ -205,10 +172,6 @@
         return dispatch.listenTo(configuration, "change:orientation", reorient);
     }
 
-    /**
-     * @param resource the GeoJSON resource's URL
-     * @returns {Object} a promise for GeoJSON topology features: {boundaryLo:, boundaryHi:}
-     */
     function buildMesh(resource) {
         var cancel = this.cancel;
         report.status("Downloading...");
@@ -230,10 +193,6 @@
         });
     }
 
-    /**
-     * @param {String} projectionName the desired projection's name.
-     * @returns {Object} a promise for a globe object.
-     */
     function buildGlobe(projectionName) {
         var builder = globes.get(projectionName);
         if (!builder) {
@@ -263,9 +222,6 @@
         });
     }
 
-    /**
-     * Modifies the configuration to navigate to the chronologically next or previous data layer.
-     */
     function navigate(step) {
         if (downloadsInProgress > 0) {
             log.debug("Download in progress--ignoring nav request.");
@@ -446,10 +402,6 @@
         return field;
     }
 
-    /**
-     * Calculate distortion of the wind vector caused by the shape of the projection at point (x, y). The wind
-     * vector is modified in place and returned by this function.
-     */
     function distort(projection, λ, φ, x, y, scale, wind) {
         var u = wind[0] * scale;
         var v = wind[1] * scale;
@@ -715,28 +667,9 @@
             colorBar.on("mouseout", function() {
                 tooltip.style("display", "none");
             });
-
-            // Click event on scale bar to display value in #scale-info
-            /*
-            colorBar.on("click", function() {
-                var x = d3.mouse(this)[0];
-                var actualWidth = this.offsetWidth || c.width;
-                var pct = µ.clamp(x / actualWidth, 0, 1);
-                var value = µ.spread(pct, bounds[0], bounds[1]);
-                var elementId = grid.type === "wind" ? "#location-wind-units" : "#location-value-units";
-                var units = createUnitToggle(elementId, grid).value();
-                d3.select("#scale-info").text(µ.formatScalar(value, units) + " " + units.label);
-            });
-             */
-
         }
     }
 
-    /**
-     * Extract the date the grids are valid, or the current date if no grid is available.
-     * UNDONE: if the grids hold unloaded products, then the date can be extracted from them.
-     *         This function would simplify nicely.
-     */
     function validityDate(grids) {
         // When the active layer is considered "current", use its time as now, otherwise use current time as
         // now (but rounded down to the nearest three-hour block).
@@ -749,9 +682,6 @@
             parts[0] === "current" ? now : null;
     }
 
-    /**
-     * Display the grid's validity date in the menu. Allow toggling between local and UTC time.
-     */
     function showDate(grids) {
         var date = new Date(validityDate(grids)), isLocal = d3.select("#data-date").classed("local");
         var formatted = isLocal ? µ.toLocalISO(date) : µ.toUTCISO(date);
@@ -759,9 +689,7 @@
         d3.select("#toggle-zone").text("⇄ " + (isLocal ? "UTC" : "Local"));
     }
 
-    /**
-     * Display the grids' types in the menu.
-     */
+
     function showGridDetails(grids) {
         showDate(grids);
         var description = "", center = "";
@@ -779,12 +707,6 @@
         d3.select("#data-center").text(center);
     }
 
-    /**
-     * Constructs a toggler for the specified product's units, storing the toggle state on the element having
-     * the specified id. For example, given a product having units ["m/s", "mph"], the object returned by this
-     * method sets the element's "data-index" attribute to 0 for m/s and 1 for mph. Calling value() returns the
-     * currently active units object. Calling next() increments the index.
-     */
     function createUnitToggle(id, product) {
         var units = product.units, size = units.length;
         var index = +(d3.select(id).attr("data-index") || 0) % size;
@@ -798,9 +720,6 @@
         };
     }
 
-    /**
-     * Display the specified wind value. Allow toggling between the different types of wind units.
-     */
     function showWindAtLocation(wind, product) {
         var unitToggle = createUnitToggle("#location-wind-units", product), units = unitToggle.value();
         d3.select("#location-wind").text(µ.formatVector(wind, units));
@@ -810,9 +729,7 @@
         });
     }
 
-    /**
-     * Display the specified overlay value. Allow toggling between the different types of supported units.
-     */
+
     function showOverlayValueAtLocation(value, product) {
         var unitToggle = createUnitToggle("#location-value-units", product), units = unitToggle.value();
         d3.select("#location-value").text(µ.formatScalar(value, units));
@@ -826,11 +743,6 @@
     // details when the field changes.
     var activeLocation = {};
 
-    /**
-     * Display a local data callout at the given [x, y] point and its corresponding [lon, lat] coordinates.
-     * The location may not be valid, in which case no callout is displayed. Display location data for both
-     * the primary grid and overlay grid, performing interpolation when necessary.
-     */
     function showLocationDetails(point, coord) {
         point = point || [];
         coord = coord || [];
@@ -885,13 +797,6 @@
         }
     }
 
-    /**
-     * Registers a click event handler for the specified DOM element which modifies the configuration to have
-     * the attributes represented by newAttr. An event listener is also registered for configuration change events,
-     * so when a change occurs the button becomes highlighted (i.e., class ".highlighted" is assigned or removed) if
-     * the configuration matches the attributes for this button. The set of attributes used for the matching is taken
-     * from newAttr, unless a custom set of keys is provided.
-     */
     function bindButtonToConfiguration(elementId, newAttr, keys) {
         keys = keys || _.keys(newAttr);
         d3.select(elementId).on("click", function() {
@@ -910,22 +815,9 @@
         }
     }
 
-    /**
-     * Registers all event handlers to bind components and page elements together. There must be a cleaner
-     * way to accomplish this...
-     */
+
     function init() {
         report.status("Initializing...");
-
-        /*
-        d3.select("#sponsor-link")
-            .attr("target", µ.isEmbeddedInIFrame() ? "_new" : null)
-            .on("click", reportSponsorClick.bind(null, "click"))
-            .on("contextmenu", reportSponsorClick.bind(null, "right-click"))
-        d3.select("#sponsor-hide").on("click", function() {
-            d3.select("#sponsor").classed("invisible", true);
-        });
-         */
 
         d3.selectAll(".fill-screen").attr("width", view.width).attr("height", view.height);
         // Adjust size of the scale canvas to fill the width of the menu to the right of the label.
@@ -1061,22 +953,10 @@
         configuration.on("change:param", function(context, mode) {
             d3.selectAll(".ocean-mode").classed("invisible", mode !== "ocean");
             d3.selectAll(".wind-mode").classed("invisible", mode !== "wind");
-
-
-            switch (mode) {
-                case "wind":
-                    d3.select("#nav-backward-more").attr("title", "-1 Day");
-                    d3.select("#nav-backward").attr("title", "-3 Hours");
-                    d3.select("#nav-forward").attr("title", "+3 Hours");
-                    d3.select("#nav-forward-more").attr("title", "+1 Day");
-                    break;
-                case "ocean":
-                    d3.select("#nav-backward-more").attr("title", "-1 Day");
-                    d3.select("#nav-backward").attr("title", "-3 Hours");
-                    d3.select("#nav-forward").attr("title", "+3 Hours");
-                    d3.select("#nav-forward-more").attr("title", "+1 Day");
-                    break;
-            }
+            d3.select("#nav-backward-more").attr("title", "-1 Day");
+            d3.select("#nav-backward").attr("title", "-3 Hours");
+            d3.select("#nav-forward").attr("title", "+3 Hours");
+            d3.select("#nav-forward-more").attr("title", "+1 Day");
         });
 
 
@@ -1093,9 +973,6 @@
                 }
             } else if (selectedValue === "Ocean") {
                 if (configuration.get("param") !== "ocean") {
-                    // When switching between modes, there may be no associated data for the current date. So we need
-                    // find the closest available according to the catalog. This is not necessary if date is "current".
-                    // UNDONE: this code is annoying. should be easier to get date for closest ocean product.
                     var ocean = {param: "ocean", surface: "surface", level: "currents", overlayType: "default"};
                     var attr = _.clone(configuration.attributes);
                     if (attr.date === "current") {
@@ -1119,7 +996,6 @@
                 selectNode.value = param === "ocean" ? "Ocean" : "Air";
             }
         });
-
 
         // Add logic to disable buttons that are incompatible with each other.
         configuration.on("change:overlayType", function(x, ot) {
