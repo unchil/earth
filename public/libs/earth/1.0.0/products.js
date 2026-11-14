@@ -9,13 +9,6 @@
 var products = function() {
     "use strict";
     var ENDPOINT = "http://192.168.55.6:7788/earth/env";
-    var WEATHER_PATH = "/data/weather";
-    var OSCAR_PATH = "/data/oscar";
-    var catalogs = {
-        // The OSCAR catalog is an array of file names, sorted and prefixed with yyyyMMdd. Last item is the
-        // most recent. For example: {"files": [ 20140101-abc.json, 20140106-abc.json, 20140112-abc.json], "total_count": 3}
-        oscar: µ.loadJson([OSCAR_PATH, "catalog.json"].join("/"))
-    };
 
     function buildProduct(overrides) {
         return _.extend({
@@ -493,9 +486,8 @@ var products = function() {
 
 
         "currents": {
-            matches: _.matches({param: "ocean", surface: "surface", level: "currents"}),
+            matches: _.matches({param: "ocean"}),
             create: function(attr) {
-                return when(catalogs.oscar).then(function(oscar) {
                     return buildProduct({
                         date: gfsDate(attr),
                         field: "vector",
@@ -536,7 +528,6 @@ var products = function() {
                         },
                         particles: {velocityScale: 1/4400, maxIntensity: 0.7}
                     });
-                });
             }
         },
 
@@ -549,46 +540,6 @@ var products = function() {
     };
 
 
-    function lookupOscar(catalog, date, offset, param) {
-        offset = +offset || 0;
-        if (date === "current") {
-            return catalog[catalog.length - 1 + offset];
-        }
-        var prefix = µ.ymdRedelimit(date, "/", "", param);
-        var i = _.sortedIndex(catalog, prefix);
-
-        i = (catalog[i] || "").indexOf(prefix) === 0 ? i : i - 1;
-        return catalog[i + offset];
-    }
-
-    function oscar0pPath(catalog, attr) {
-        var file = lookupOscar(catalog, attr.date, 0, attr.param);
-        return file ? [OSCAR_PATH, file].join("/") : null;
-    }
-
-    function oscarDate(catalog, attr) {
-
-        if (attr.date === "current") {
-            // Construct the date from the current time, rounding down to the nearest three-hour block.
-            let now = new Date(Date.now());
-            let hour = Math.floor(now.getUTCHours() / 3);
-            let utcDate = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour);
-            return new Date(utcDate);
-        }
-        let parts = attr.date.split("/");
-        let utcDate = Date.UTC(+parts[0], parts[1] - 1, +parts[2], +attr.hour.substring(0, 2));
-        return new Date(utcDate);
-    }
-
-    function oscarStep(catalog, date, step) {
-
-        var offset = (step > 1 ? 8 : step < -1 ? -8 : step) * 3;
-        var adjusted = new Date(date);
-        adjusted.setHours(adjusted.getHours() + offset );
-        return adjusted;
-
-
-    }
 
     function dataSource(header) {
         // noinspection FallthroughInSwitchStatementJS
