@@ -204,8 +204,11 @@ def process_file_with_reused_grid(
                 ON CONFLICT(forecast_time, mode, type, surface, level ) DO UPDATE SET
                 grib2json = excluded.grib2json'''
 
-            # db insert job
             cursor.executemany(query_batch, batch_data)
+            conn.commit()
+
+            cursor.execute( "DELETE FROM Earth_Current_Tbl WHERE mode = 'ocean'" )
+            cursor.execute( "INSERT INTO Earth_Current_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?) ", batch_data[0] )
             conn.commit()
 
             print(f">> 총 {cursor.rowcount}개의 데이터가 일괄 삽입되었습니다.")

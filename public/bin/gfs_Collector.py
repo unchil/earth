@@ -307,7 +307,7 @@ def main():
             cursor.executemany(query_batch, batch_data)
             conn.commit()
 
-            cursor.execute("DELETE FROM Earth_Current_Tbl")
+            cursor.execute("DELETE FROM Earth_Current_Tbl WHERE mode = 'air'")
             conn.commit()
 
             query_current = '''INSERT INTO Earth_Current_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?)
