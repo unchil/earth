@@ -308,7 +308,6 @@ def main():
             conn.commit()
 
             cursor.execute("DELETE FROM Earth_Current_Tbl WHERE mode = 'air'")
-            conn.commit()
 
             query_current = '''INSERT INTO Earth_Current_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(forecast_time, mode, type, surface, level ) DO UPDATE SET
