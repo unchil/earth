@@ -8,14 +8,20 @@ from scipy.interpolate import LinearNDInterpolator
 import pandas as pd
 import time
 from pathlib import Path
+import sqlite3
 
 def process_file_with_reused_grid(
-        file_path,
-        mt_indices,
-        output_dir):
+        file_path:String,
+        mt_indices:Range,
+        output_dir:String):
 
     # 전체 함수 시작 시간 측정
     func_start_time = time.time()
+
+    conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
+    cursor = conn.cursor()
+    batch_data = []
+
     """
     하나의 파일에 대해 LinearNDInterpolator 구조를 최초 1회만 빌드하고,
     지정된 MT 인덱스 배열을 순차적으로 값만 변경하여 메모리 세이프하게 처리하는 함수
@@ -172,6 +178,9 @@ def process_file_with_reused_grid(
                 }
             ]
 
+            #DB 에 Insert 할 튜플  생성
+            batch_data.append( (time_str, "ocean", "currents", "surface", "level", json.dumps(payload) ) )
+
             try:
                 output_filename =  f"{time_str}-surface-currents-oscar-1.0.json"
                 output_filepath = os.path.join(output_dir, output_filename)
@@ -188,6 +197,22 @@ def process_file_with_reused_grid(
             # 루프 사이클마다 사용이 끝난 루프 로컬 메모리 비우기 예비 조치
             del u_raw, v_raw, u_grid, v_grid, u_flat, v_flat, u_rounded, v_rounded, u_nan_mask, v_nan_mask
             gc.collect()
+
+        # 생성된 쿼리를 batchInsert
+        try:
+            query_batch = '''INSERT INTO Earth_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(forecast_time, mode, type, surface, level ) DO UPDATE SET
+                grib2json = excluded.grib2json'''
+
+            # db insert job
+            cursor.executemany(query_batch, batch_data)
+            conn.commit()
+
+            print(f">> 총 {cursor.rowcount}개의 데이터가 일괄 삽입되었습니다.")
+        except Exception as e:
+            print(f"데이터 삽입 중 오류 발생: {e}")
+        finally:
+            conn.close()
 
     print(f"파일 전체 처리 완료 소요 시간: {time.time() - func_start_time:.4f}초")
     return generated_files

@@ -8,7 +8,7 @@
  */
 var products = function() {
     "use strict";
-
+    var ENDPOINT = "http://192.168.55.6:7788/earth/env";
     var WEATHER_PATH = "/data/weather";
     var OSCAR_PATH = "/data/oscar";
     var catalogs = {
@@ -35,18 +35,23 @@ var products = function() {
     }
 
 
-    function gfs1p0degPath(attr, type, surface, level) {
-        var dir = attr.date, stamp = dir === "current" ? "current" : attr.hour;
-        var file = [stamp, type, surface, level, "gfs", "1.0"].filter(µ.isValue).join("-") + ".json";
-        return [WEATHER_PATH, dir, file].join("/");
-    }
+    function earthDataServiceUrl(attr, type){
+        var mode =  attr.param === 'wind' ? 'air' : 'ocean';
+        var stamp, level, url, surface;
 
-    function gfsDataUrl(attr, type, surface, level) {
-        var baseUrl = "http://192.168.55.6:7788/earth/env";
-        var mode =  attr.param === 'wind' ? 'air' : 'ocean'
-        var dir = attr.date, stamp = dir === "current" ? "current" :attr.date.replace(/\//g, "") + attr.hour.slice(0, 2);
-        var url = `${baseUrl}?time=${stamp}&mode=${mode}&type=${type}&surface=${surface === "surface" ? "isobaric" : surface}&level=${level == "level" ? "1000hPa" : level}`
-        return url;
+        if( mode === 'air'){
+            stamp = attr.date === "current" ? "current" : attr.date.replace(/\//g, "") + attr.hour.slice(0, 2);
+            surface = attr.surface === "surface" ? "isobaric" : attr.surface;
+            level = attr.level === "level" ? "1000hPa" : attr.level;
+            url = `${ENDPOINT}?time=${stamp}&mode=${mode}&type=${type}&surface=${surface}&level=${level}`;
+            return url;
+        }else{
+            stamp = attr.date === "current" ? "current" : attr.date.replace(/\//g, "") + attr.hour.slice(0, 2);
+            surface =  "surface";
+            level = "level";
+            url = `${ENDPOINT}?time=${stamp}&mode=${mode}&type=${type}&surface=${surface}&level=${level}`;
+            return url;
+        }
     }
 
     function gfsDate(attr) {
@@ -109,6 +114,8 @@ var products = function() {
         }
     }
 
+    // wind 를 제외한 다른 overlayType 은 default 인 wind를 (matches: _.matches({param: "wind"}),)호출한후 호출한다.
+    // 그래서 earthDataServiceUrl 호출시 반드시 overlayType 을 넘겨야 한다.
     var FACTORIES = {
 
         "wind": {
@@ -118,11 +125,10 @@ var products = function() {
                     field: "vector",
                     type: "wind",
                     description: localize({
-                        name: {en: "Wind", ja: "風速"},
-                        qualifier: {en: " @ " + describeSurface(attr), ja: " @ " + describeSurfaceJa(attr)}
+                        name: {en: "Wind"},
+                        qualifier: {en: " @ " + describeSurface(attr)}
                     }),
-                 //   paths: [gfs1p0degPath(attr, "wind", attr.surface, attr.level)],
-                    paths: [gfsDataUrl(attr, "wind", attr.surface, attr.level)],
+                  paths: [ earthDataServiceUrl(attr, 'wind') ],
                     date: gfsDate(attr),
                     builder: function(file) {
                         var uData = file[0].data, vData = file[1].data;
@@ -150,18 +156,17 @@ var products = function() {
                 });
             }
         } ,
-        "temp": {
-            matches: _.matches({param: "wind", overlayType: "temp"}),
+        "temperature": {
+            matches: _.matches({param: "wind", overlayType: "temperature"}),
             create: function(attr) {
                 return buildProduct({
                     field: "scalar",
-                    type: "temp",
+                    type: "temperature",
                     description: localize({
-                        name: {en: "Temp", ja: "気温"},
-                        qualifier: {en: " @ " + describeSurface(attr), ja: " @ " + describeSurfaceJa(attr)}
+                        name: {en: "Temp"},
+                        qualifier: {en: " @ " + describeSurface(attr)}
                     }),
-                    //paths: [gfs1p0degPath(attr, "temperature", attr.surface, attr.level)],
-                    paths: [gfsDataUrl(attr, "temperature", attr.surface, attr.level)],
+                    paths: [ earthDataServiceUrl(attr, attr.overlayType)],
                     date: gfsDate(attr),
                     builder: function(file) {
                         var record = file[0], data = record.data;
@@ -205,26 +210,11 @@ var products = function() {
                     field: "scalar",
                     type: "relative_humidity",
                     description: localize({
-                        name: {en: "Relative Humidity", ja: "相対湿度"},
-                        qualifier: {en: " @ " + describeSurface(attr), ja: " @ " + describeSurfaceJa(attr)}
+                        name: {en: "Relative Humidity"},
+                        qualifier: {en: " @ " + describeSurface(attr)}
                     }),
-                  //  paths: [gfs1p0degPath(attr, "relative_humidity", attr.surface, attr.level)],
-                    paths: [gfsDataUrl(attr, "relative_humidity", attr.surface, attr.level)],
+                    paths: [earthDataServiceUrl(attr, attr.overlayType)],
                     date: gfsDate(attr),
-                    /*
-                    builder: function(file) {
-                        var vars = file.variables;
-                        var rh = vars.Relative_humidity_isobaric || vars.Relative_humidity_height_above_ground;
-                        var data = rh.data;
-                        return {
-                            header: netcdfHeader(vars.time, vars.lat, vars.lon, file.Originating_or_generating_Center),
-                            interpolate: bilinearInterpolateScalar,
-                            data: function(i) {
-                                return data[i];
-                            }
-                        };
-                    },
-                     */
                     builder: function(file) {
                         var record = file[0], data = record.data;
                         return {
@@ -503,13 +493,12 @@ var products = function() {
                         field: "vector",
                         type: "currents",
                         description: localize({
-                            name: {en: "Ocean Currents", ja: "海流"},
-                            qualifier: {en: " @ Surface", ja: " @ 地上"}
+                            name: {en: "Ocean Currents"},
+                            qualifier: {en: " @ Surface"}
                         }),
                         paths: [oscar0pPath(oscar.files, attr)],
+                      //  paths: [ earthDataServiceUrl(attr, 'currents') ],
                         date: gfsDate(attr),
-                       // date: oscarDate(catalog, attr),
-                       // navigate: function(step) {return oscarStep(catalog, this.date, step);  },
                         builder: function(file) {
                             var uData = file[0].data, vData = file[1].data;
                             return {
@@ -571,9 +560,6 @@ var products = function() {
     }
 
     function oscarDate(catalog, attr) {
-       // var file = lookupOscar(catalog, attr.date);
-      //  var parts = file ? µ.ymdRedelimit(file, "", "/").split("/") : null;
-      //  return parts ? new Date(Date.UTC(+parts[0], parts[1] - 1, +parts[2], 0)) : null;
 
         if (attr.date === "current") {
             // Construct the date from the current time, rounding down to the nearest three-hour block.
@@ -588,9 +574,6 @@ var products = function() {
     }
 
     function oscarStep(catalog, date, step) {
-     //   var file = lookupOscar(catalog, µ.dateToUTCymd(date, "/"), step > 1 ? 6 : step < -1 ? -6 : step);
-     //   var parts = file ? µ.ymdRedelimit(file, "", "/").split("/") : null;
-     //   return parts ? new Date(Date.UTC(+parts[0], parts[1] - 1, +parts[2], 0)) : null;
 
         var offset = (step > 1 ? 8 : step < -1 ? -8 : step) * 3;
         var adjusted = new Date(date);

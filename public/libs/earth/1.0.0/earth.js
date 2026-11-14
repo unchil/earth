@@ -1178,7 +1178,7 @@
                     configuration.save({param: "wind", overlayType: "default"});
                     break;
                 case "Temperature":
-                    configuration.save({overlayType: "temp"});
+                    configuration.save({overlayType: "temperature"});
                     break;
                 case "RelativeHumidity":
                     configuration.save({overlayType: "relative_humidity"});
@@ -1193,7 +1193,7 @@
             var value = "None";
             if (overlayType === "default") {
                 value = "WindSpeed";
-            } else if (overlayType === "temp") {
+            } else if (overlayType === "temperature") {
                 value = "Temperature";
             } else if (overlayType === "relative_humidity") {
                 value = "RelativeHumidity";
