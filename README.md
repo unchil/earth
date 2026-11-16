@@ -16,8 +16,6 @@ getting weather data
     curl "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl?dir=%2Fgfs.${YYYYMMDD}%2F${HH}%2Fatmos&file=gfs.t${${HH}}z.pgrb2.1p00.f000&var_UGRD=on&var_VGRD=on&lev_10_m_above_ground=on&lev_1000_mb=on&lev_850_mb=on&lev_700_mb=on&lev_500_mb=on&lev_250_mb=on&lev_70_mb=on&lev_10_mb=on&var_PRMSL=on&var_RH=on&var_TCDC=on&var_TMP=on" -o gfs.t${HH}z.pgrb2.1p00.f000 
     curl "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?dir=%2Fgfs.${YYYYMMDD}%2F${HH}%2Fwave%2Fgridded&file=gfswave.t${HH}z.global.0p16.f000.grib2&var_UGRD=on&var_VGRD=on&lev_surface=on&var_WVDIR=on&var_WVHGT=on&var_WVPER=on" -o gfswave.t${HH}z.global.0p16.f000
 
-### GFS Data Specification & `grib2json` Parsing Guide
-
 #### 1. Available Ranges and Values (Earth Height Layers)
 
 In `index.html` and `earth.js`, the buttons under the **Height** menu (`class="surface"`) define the allowed combinations:
@@ -36,19 +34,10 @@ In `index.html` and `earth.js`, the buttons under the **Height** menu (`class="s
 
 ---
 
-#### 2. `--filter.parameter` (`--fp`) 정의 및 주요 기상 변수 매핑
-
-- **WMO GRIB2 계층 구조**:
-    - `Discipline` (`--fd`): 대분류 (예: `0` = 기상학적 프로덕트)
-    - `Category` (`--fc`): 기상 카테고리 (예: `0` = 온도, `1` = 수분, `2` = 운동량, `3` = 질량, `6` = 구름)
-    - `Parameter` (`--fp`): 카테고리 내 세부 물리량 번호 (또는 특수 키워드 `"wind"`)
-
-- **특수 키워드 `"wind"`**:
-    - `--fp wind`: 바람 벡터 연산에 필요한 `UGRD`(동서 성분, Category 2 / Parameter 2)와 `VGRD`(남북 성분, Category 2 / Parameter 3)를 한 번에 동시 추출합니다.
 
 - **주요 기상 변수 파라미터 코드 매핑**:
 
-| 카테고리 (`--fc`) | 파라미터 (`--fp`) | 변수명 | 설명 | `earth` 레이어 매핑 |
+| 카테고리 | 파라미터  | 변수명 | 설명 | `earth` 레이어 매핑 |
 |:---|:---|:---|:---|:---|
 | **2 (Momentum)** | `wind` *(or `2`, `3`)* | `UGRD` & `VGRD` | U/V 풍속 벡터 성분 (m/s) | 바람 벡터 (`wind`) |
 | **0 (Temperature)** | `0` | `TMP` | 기온 (Temperature, K) | 기온 (`temp`) |
@@ -60,65 +49,6 @@ In `index.html` and `earth.js`, the buttons under the **Height** menu (`class="s
 | **7 (Stability)** | `6` | `CAPE` | 대기불안정도 (CAPE, J/kg) | 대기 대류 유효 전위 에너지 |
 
 
-
-
-#### 3. GFS 데이터 계층(Surface / Level)별 `grib2json` 파싱 옵션 매핑 표
-
-| `surface` | `level` | 고도 / 기압 | 기상학적 의미 | `grib2json` 필터 옵션 (`--fs`, `--fv`, `--fp`) | 생성 파일명 (Wind 기준 예시) |
-|:---|:---|:---|:---|:---|:---|
-| `"surface"` | `"level"` | 지표면 / 10m | 지표 바람 (10 m), 지상 기온/습도 | `--fp wind --fs 103 --fv 10` *(지표 10m 바람)*<br>`--fp 0 --fs 103 --fv 2` *(지상 2m 기온)*<br>`--fs 1 --fv 0` *(지표면/해수면)* | `0000-wind-surface-level-gfs-1.0.json` |
-| `"isobaric"` | `"1000hPa"` | ~100 m | 해수면 인근 대기 상태 (약 1,000 hPa) | `--fp wind --fs 100 --fv 100000` | `0000-wind-isobaric-1000hPa-gfs-1.0.json` |
-| `"isobaric"` | `"850hPa"` | ~1,500 m | 대기 경계층 상단 / 하층운 (850 hPa) | `--fp wind --fs 100 --fv 85000` | `0000-wind-isobaric-850hPa-gfs-1.0.json` |
-| `"isobaric"` | `"700hPa"` | ~3,500 m | 하층 대기 / 습윤 구름대 (700 hPa) | `--fp wind --fs 100 --fv 70000` | `0000-wind-isobaric-700hPa-gfs-1.0.json` |
-| `"isobaric"` | `"500hPa"` | ~5,000 m | 중층 대기 (와도 분석 및 기압골/기압능) | `--fp wind --fs 100 --fv 50000` | `0000-wind-isobaric-500hPa-gfs-1.0.json` |
-| `"isobaric"` | `"250hPa"` | ~10,500 m | 상층 대류권 (제트기류 / Jet Stream) | `--fp wind --fs 100 --fv 25000` | `0000-wind-isobaric-250hPa-gfs-1.0.json` |
-| `"isobaric"` | `"70hPa"` | ~17,500 m | 하층 성층권 | `--fp wind --fs 100 --fv 7000` | `0000-wind-isobaric-70hPa-gfs-1.0.json` |
-| `"isobaric"` | `"10hPa"` | ~26,500 m | 성층권 상부 (극야 제트 등) | `--fp wind --fs 100 --fv 1000` | `0000-wind-isobaric-10hPa-gfs-1.0.json` |
-| `undefined` | `undefined` | 전체 대기 컬럼 / 해면 | 통합 오버레이 (`TPW`, `TCW`, `MSLP` 등) | `--fs 200 --fv 0` *(전체 대기층 - PWAT)*<br>`--fs 101 --fv 0` *(해면기압 - PRMSL)*<br>`--fs 1 --fv 0` *(지표 - CAPE)* | `current-total_precipitable_water-gfs-1.0.json`<br>`current-mean_sea_level_pressure-gfs-1.0.json` |
-
----
-
-#### 4. `grib2json` 주요 옵션 상세 설명
-
-- **공통 필수 플래그**:
-  - `-d` (`--data`): 그리드 배열 데이터(`"data": [...]`)를 출력에 포함합니다 (시각화 연산 필수).
-  - `-n` (`--names`): 메타데이터에 사람이 읽을 수 있는 명칭(문자열)을 추가합니다.
-  - `-c` (`--compact`): 배열 포맷의 공백/줄바꿈을 압축하여 JSON 용량을 대폭 줄입니다.
-
-- **표면 유형 (`--fs`, `--filter.surface`) 코드**:
-  - `1`: Ground or water surface (지표면/해수면)
-  - `100`: Isobaric surface (등압면)
-  - `101`: Mean sea level (평균 해수면)
-  - `103`: Specified height level above ground (지상 특정 높이)
-  - `200`: Entire atmosphere considered as a single layer (단일 층으로 간주된 전체 대기)
-
-- **표면 값 (`--fv`, `--filter.value`) 단위**:
-  - **등압면 (`--fs 100`)**: 단위가 파스칼(Pa)입니다. (1 hPa = 100 Pa)
-    - 1000 hPa $\rightarrow$ 100000
-    - 850 hPa $\rightarrow$ 85000
-    - 700 hPa $\rightarrow$ 70000
-    - 500 hPa $\rightarrow$ 50000
-    - 250 hPa $\rightarrow$ 25000
-    - 70 hPa $\rightarrow$ 7000
-    - 10 hPa $\rightarrow$ 1000
-  - **지상 고도 (`--fs 103`)**: 단위가 미터(m)입니다.
-    - 지표 바람(10m): `--fv 10`
-    - 지상 기온/습도(2m): `--fv 2`
-
----
-
-#### 5. 대표 변환 명령어 예시
-
-```zsh
-# 1. 지표 바람 (Surface Wind, 10m above ground)
-grib2json -d -n -c --fp wind --fs 100 --fv 100000 -o current-wind-isobaric-1000hPa-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
-# 2. 상대습도 (Relative Humidity, %)
-grib2json -d -n -c --fc 1 --fp 1 --fs 100 --fv 100000 -o current-relative_humidity-isobaric-1000hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-# 3. 등압면 기온 (Temperature)
-grib2json -d -n -c --fc 0 --fp 0 --fs 100 --fv 100000 -o current-temp-isobaric-1000hPa-gfs-1.0.json  gfs.t00z.pgrb2.1p00.f000
-```
-
----
 
 ## 🌊 데이터 수집 및 변환 (RTOFS to GRIB2 JSON)
 
