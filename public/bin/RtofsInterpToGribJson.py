@@ -13,14 +13,19 @@ import sqlite3
 def process_file_with_reused_grid(
         file_path:String,
         mt_indices:Range,
-        output_dir:String):
+        useDb:bool,
+        output_dir:String
+):
 
     # 전체 함수 시작 시간 측정
     func_start_time = time.time()
 
-    conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
-    cursor = conn.cursor()
-    batch_data = []
+    if useDb == "Y":
+        conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
+        cursor = conn.cursor()
+        batch_data = []
+    else:
+        generated_files = []
 
     """
     하나의 파일에 대해 LinearNDInterpolator 구조를 최초 1회만 빌드하고,
@@ -28,7 +33,7 @@ def process_file_with_reused_grid(
     """
     base_name = os.path.splitext(os.path.basename(file_path))[0]
     print(f"파일 처리 시작 (Dask 적용): [{base_name}]")
-    generated_files = []
+
 
     # Dask chunks를 적용하여 대용량 파일을 지연 로딩(Lazy Loading)으로 오픈
     # MT 차원을 기준으로 청크를 나누어 메모리 효율 극대화
@@ -68,6 +73,7 @@ def process_file_with_reused_grid(
 
         # LinearNDInterpolator 최초 뼈대(Delaunay Triangulation) 빌드 시간 (가장 CPU 소모가 큰 구간 중 하나)
         # 임시 값으로 뼈대(Delaunay Triangulation)를 최초 1회만 빌드합니다.
+
         t0 = time.time()
         u_vals_sample = u_sample[valid_mask].astype(np.float64)
         interp_u = LinearNDInterpolator(points, u_vals_sample)
@@ -76,6 +82,7 @@ def process_file_with_reused_grid(
         v_vals_sample = v_sample[valid_mask].astype(np.float64)
         interp_v = LinearNDInterpolator(points, v_vals_sample)
         print(f" 최초 삼각화 격자 기하 구조 빌드 소요 시간: {time.time() - t0:.4f}초 (총 {len(points)} 포인트)")
+
 
         refTime = pd.to_datetime(mt_array[0]).strftime('%Y-%m-%dT%H:%M:%S.000Z')
 
@@ -86,6 +93,7 @@ def process_file_with_reused_grid(
             time_str = pd.to_datetime(mt_array[mt_idx]).strftime('%Y%m%d%H')
 
             print(f"[{mt_idx + 1}/{mt_array.size}] MT 시간대 처리 중... ({forecastTime})")
+
 
             # [메모리 최적화] 대용량 배열 전체를 읽지 않고 해당 타임스텝 딱 '한 장'만 디스크에서 로드
             u_raw = ds['u_velocity'].isel(MT=mt_idx, Layer=0).compute().values.flatten()
@@ -114,8 +122,6 @@ def process_file_with_reused_grid(
             u_flat = [None if isnan else float(val) for val, isnan in zip(u_rounded, u_nan_mask)]
             v_flat = [None if isnan else float(val) for val, isnan in zip(v_rounded, v_nan_mask)]
             print(f"    [벤치마크] 격자 보간 연산 수행 소요 시간: {time.time() - t0:.4f}초")
-
-            # 페이로드 및 파일 저장 (I/O)
 
             t0 = time.time()
             # JSON 구조 정의
@@ -178,47 +184,52 @@ def process_file_with_reused_grid(
                 }
             ]
 
-            #DB 에 Insert 할 튜플  생성
-            batch_data.append( (time_str, "ocean", "currents", "surface", "level", json.dumps(payload) ) )
 
-            try:
-                output_filename =  f"{time_str}-surface-currents-oscar-1.0.json"
-                output_filepath = os.path.join(output_dir, output_filename)
-                with open(output_filepath, 'w', encoding='utf-8') as f:
-                    json.dump(payload, f)
 
-                print(f"저장 완료! (용량: {os.path.getsize(output_filepath) / (1024*1024):.2f} MB)")
-                print(f"    [벤치마크] JSON 파일 저장 소요 시간: {time.time() - t0:.4f}초 (용량: {os.path.getsize(output_filepath) / (1024*1024):.2f} MB)")
-                # 생성된 파일명을 리스트에 추가 (상대 경로 또는 파일명만 필요시 선택)
-                generated_files.append(output_filename)
-            except Exception as e:
-                print(f"{time_str} 파일 처리 중 에러 발생: {e}")
+
+            if useDb == "Y":
+                batch_data.append( (time_str, "ocean", "currents", "surface", "level", json.dumps(payload) ) )
+            else:
+                try:
+                    output_filename =  f"{time_str}-surface-currents-oscar-1.0.json"
+                    output_filepath = os.path.join(output_dir, output_filename)
+                    with open(output_filepath, 'w', encoding='utf-8') as f:
+                        json.dump(payload, f)
+
+                    print(f"저장 완료! (용량: {os.path.getsize(output_filepath) / (1024*1024):.2f} MB)")
+                    print(f"    [벤치마크] JSON 파일 저장 소요 시간: {time.time() - t0:.4f}초 (용량: {os.path.getsize(output_filepath) / (1024*1024):.2f} MB)")
+                    # 생성된 파일명을 리스트에 추가 (상대 경로 또는 파일명만 필요시 선택)
+                    generated_files.append(output_filename)
+                except Exception as e:
+                    print(f"{time_str} 파일 처리 중 에러 발생: {e}")
 
             # 루프 사이클마다 사용이 끝난 루프 로컬 메모리 비우기 예비 조치
-            del u_raw, v_raw, u_grid, v_grid, u_flat, v_flat, u_rounded, v_rounded, u_nan_mask, v_nan_mask
+            # del u_raw, v_raw, u_grid, v_grid, u_flat, v_flat, u_rounded, v_rounded, u_nan_mask, v_nan_mask
             gc.collect()
 
-        # 생성된 쿼리를 batchInsert
-        try:
-            query_batch = '''INSERT INTO Earth_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(forecast_time, mode, type, surface, level ) DO UPDATE SET
-                grib2json = excluded.grib2json'''
+        if useDb == "Y":
+            try:
+                query_batch = '''INSERT INTO Earth_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(forecast_time, mode, type, surface, level ) DO UPDATE SET
+                    grib2json = excluded.grib2json'''
 
-            cursor.executemany(query_batch, batch_data)
-            conn.commit()
+                cursor.executemany(query_batch, batch_data)
+                conn.commit()
 
-            cursor.execute( "DELETE FROM Earth_Current_Tbl WHERE mode = 'ocean'" )
-            cursor.execute( "INSERT INTO Earth_Current_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?) ", batch_data[0] )
-            conn.commit()
+                cursor.execute( "DELETE FROM Earth_Current_Tbl WHERE mode = 'ocean'" )
+                cursor.execute( "INSERT INTO Earth_Current_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?) ", batch_data[0] )
+                conn.commit()
 
-            print(f">> 총 {cursor.rowcount}개의 데이터가 일괄 삽입되었습니다.")
-        except Exception as e:
-            print(f"데이터 삽입 중 오류 발생: {e}")
-        finally:
-            conn.close()
+                print(f">> 총 {len(query_batch)}개의 데이터가 일괄 삽입되었습니다.")
+            except Exception as e:
+                print(f"데이터 삽입 중 오류 발생: {e}")
+            finally:
+                print(f"파일 전체 처리 완료 소요 시간: {time.time() - func_start_time:.4f}초")
+                conn.close()
+        else:
+            print(f"파일 전체 처리 완료 소요 시간: {time.time() - func_start_time:.4f}초")
+            return generated_files
 
-    print(f"파일 전체 처리 완료 소요 시간: {time.time() - func_start_time:.4f}초")
-    return generated_files
 
 
 def main():
@@ -227,7 +238,8 @@ def main():
     parser.add_argument("--files", type=str, nargs="+", required=True, help="List of input .nc file paths separated by spaces")
     # [변경됨] --mt_indices 대신 --mt_range를 사용하여 시작과 끝 범위를 정수로 2개 입력받음
     parser.add_argument("--mt_range", type=int, nargs=2, required=True, help="Range of MT indices specified as start and end (e.g., --mt_range 0 24)")
-    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save the processed JSON files")
+    parser.add_argument("--useDb", type=str, default="Y", required=True, help="Whether a database insert occurred(default: True")
+    parser.add_argument("--output_dir", type=str,  help="Directory to save the processed JSON files")
 
     args = parser.parse_args()
 
@@ -240,13 +252,12 @@ def main():
     # 만약 끝 번호 직전까지만 처리하려면 end + 1 대신 end를 사용하세요.
     mt_indices = list(range(start_idx, end_idx + 1))
 
-    os.makedirs(args.output_dir, exist_ok=True)
-
+    if args.useDb == "N":
+        os.makedirs(args.output_dir, exist_ok=True)
+        # 전체 실행 동안 생성된 모든 JSON 파일 이름을 수집할 총괄 리스트
+        all_generated_files = []
 
     print(f"격자 재사용 고속 처리 시작 (선택 파일 수: {len(args.files)}개, 대상 인덱스 범위: {start_idx} ~ {end_idx}, 총 {len(mt_indices)}개)")
-
-    # 전체 실행 동안 생성된 모든 JSON 파일 이름을 수집할 총괄 리스트
-    all_generated_files = []
 
     # 파일 레벨 순차 대형 루프 (메모리 덤핑 방지)
     for file_path in args.files:
@@ -256,10 +267,11 @@ def main():
 
         try:
             file_generated = process_file_with_reused_grid(
-                file_path, mt_indices, args.output_dir
-            )
+                file_path, mt_indices, args.useDb, args.output_dir )
+
             if file_generated:
                 all_generated_files.extend(file_generated)
+
         except Exception as e:
             print(f"파일 처리 중 에러 발생: {e}")
         finally:
@@ -267,38 +279,38 @@ def main():
             gc.collect()
 
 
-    # 중복 파일명 제거 (필요시 정렬 수행)
-    all_generated_files = sorted(list(set(all_generated_files)))
+    if args.useDb == "N":
+        all_generated_files = sorted(list(set(all_generated_files)))
 
+        if all_generated_files:
+            # catalog.json 파일로 overwrite 저장
+            catalog_path = os.path.join(args.output_dir, "catalog.json")
 
-    if all_generated_files:
-        # catalog.json 파일로 overwrite 저장
-        catalog_path = os.path.join(args.output_dir, "catalog.json")
+            if Path(catalog_path).exists():
+                with open(catalog_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            else:
+                data = {"files": [], "total_count": 0}
 
-        if Path(catalog_path).exists():
-            with open(catalog_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
+            merge_list = merge_and_overwrite( data.get("files", []) , all_generated_files)
+
+            # 저장할 구조 정의 (필요에 따라 딕셔너리 형태로 감싸거나 리스트 형태로 바로 저장 가능합니다)
+            catalog_data = {
+                "files": merge_list,
+                "total_count": len(merge_list)
+            }
+            try:
+                with open(catalog_path, 'w', encoding='utf-8') as f:
+                    json.dump(catalog_data, f, ensure_ascii=False, indent=4)
+
+                print(f"[카탈로그 저장 완료] 총 {len(all_generated_files)}개의 파일 목록이 {catalog_path} 에 overwrite 되었습니다.")
+            except Exception as e:
+                print(f"카탈로그 파일 처리 중 에러 발생: {e}")
+            finally:
+                print("[작업 종료]")
+
         else:
-            data = {"files": [], "total_count": 0}
-
-        merge_list = merge_and_overwrite( data.get("files", []) , all_generated_files)
-
-         # 저장할 구조 정의 (필요에 따라 딕셔너리 형태로 감싸거나 리스트 형태로 바로 저장 가능합니다)
-        catalog_data = {
-            "files": merge_list,
-            "total_count": len(merge_list)
-        }
-        try:
-            with open(catalog_path, 'w', encoding='utf-8') as f:
-                json.dump(catalog_data, f, ensure_ascii=False, indent=4)
-
-            print(f"[카탈로그 저장 완료] 총 {len(all_generated_files)}개의 파일 목록이 {catalog_path} 에 overwrite 되었습니다.")
-        except Exception as e:
-            print(f"카탈로그 파일 처리 중 에러 발생: {e}")
-        finally:
-            print("[작업 종료]")
-    else:
-        print("[작업 종료] 파일 생성이 실패하여 catalog.json 파일을 생성하지 않았습니다.")
+            print("[작업 종료] 파일 생성이 실패하여 catalog.json 파일을 생성하지 않았습니다.")
 
 
 def merge_and_overwrite(target_list, new_list):
@@ -312,5 +324,7 @@ if __name__ == "__main__":
 """
 python RtofsInterpToGribJson.py \
 --files ./test/file1.nc ./test/file2.nc ./test/file3.nc \
---mt_range 0 8 --output_dir ./oscar
+--mt_range 0 8 
+--useDb Y
+--output_dir ../oscar
 """

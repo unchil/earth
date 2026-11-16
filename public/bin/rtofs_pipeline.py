@@ -9,8 +9,9 @@ def main():
 
     # RtofsInterpToGribJson.py와 호환되는 인자 정의
     parser.add_argument("--mt_range", type=int, nargs=2, required=True, help="Range of MT indices specified as start and end (e.g., --mt_range 0 8)")
-    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save the processed JSON files")
+    parser.add_argument("--useDb", type=str, default="Y", help="Whether a database insert occurred(default: True")
     parser.add_argument("--converter_script", type=str, default="RtofsInterpToGribJson.py", help="Path to the conversion script (default: RtofsInterpToGribJson.py)")
+    parser.add_argument("--output_dir", type=str,  help="Directory to save the processed JSON files")
 
     args = parser.parse_args()
 
@@ -20,7 +21,8 @@ def main():
     if start_idx > end_idx:
         parser.error("오류: --mt_range의 시작 인덱스는 끝 인덱스보다 클 수 없습니다.")
 
-    os.makedirs(args.output_dir, exist_ok=True)
+    if args.useDb == "N":
+        os.makedirs(args.output_dir, exist_ok=True)
 
     print("=" * 60)
     print(" [1단계] RtosfsCollector.py 실행 (최신 RTOFS 파일 다운로드 및 압축 해제)")
@@ -67,6 +69,7 @@ def main():
         "python3", args.converter_script,
         "--files", latest_nc_file,
         "--mt_range", str(start_idx), str(end_idx),
+        "--useDb", args.useDb,
         "--output_dir", args.output_dir
     ]
 
@@ -81,7 +84,8 @@ def main():
     else:
         print("=" * 60)
         print(f" [성공] 모든 파이프라인 작업이 완료되었습니다! (총 소요 시간: {time.time() - t0:.4f}초)")
-        print(f" 결과 저장 디렉토리: {os.path.abspath(args.output_dir)}")
+        if args.useDb == "N":
+            print(f" 결과 저장 디렉토리: {os.path.abspath(args.output_dir)}")
         os.remove(latest_nc_file)
         print("=" * 60)
 

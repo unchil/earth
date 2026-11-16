@@ -44,16 +44,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--maxH", type=int, nargs=1, default=72, help="Maximum forecast duration (default: 72)")
     parser.add_argument("--retry", type=int, nargs=1, default=3, help="Maximum number of retries (default: 3)")
-    parser.add_argument("--useDb", type=bool, default= True, help="Whether a database insert occurred(default: True")
+    parser.add_argument("--useDb", type=str, default="Y", help="Whether a database insert occurred(default: True")
 
     args = parser.parse_args()
 
     max_hour = args.maxH
     max_retry = args.retry
-    useDb = args.useDb
 
     print(f"사용법: python {sys.argv[0]} [최대예보시간] [최대재시도횟수]  [데이터베이스 사용여부]")
-    print(f"입력된 옵션: maxH[{max_hour}], retry[{max_retry}], useDb[{useDb}]")
+    print(f"입력된 옵션: maxH[{max_hour}], retry[{max_retry}], useDb[{args.useDb}]")
 
 
     # NOMADS GFS 1.0도 기본 URL 및 설정
@@ -198,7 +197,7 @@ def main():
         sys.exit(1)
 
 
-    if(useDb):
+    if args.useDb == "Y":
         conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
         cursor = conn.cursor()
         cursor.execute("DELETE FROM Earth_Current_Tbl WHERE mode = 'air'")
@@ -212,7 +211,7 @@ def main():
         f_num = filename[-3:]
         offset_hours = int(f_num)
 
-        if(useDb):
+        if args.useDb == "Y":
 
             mode = 'air'
             surface = 'isobaric'
@@ -396,7 +395,7 @@ def main():
                             )
                             shutil.copy(target_file_path, current_surface_path)
 
-    if(useDb):
+    if args.useDb == "Y":
         conn.close()
 
     print("=== 모든 데이터 디코딩 완료 ===")
