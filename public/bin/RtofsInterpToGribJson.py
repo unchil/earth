@@ -238,7 +238,7 @@ def main():
     parser.add_argument("--files", type=str, nargs="+", required=True, help="List of input .nc file paths separated by spaces")
     # [변경됨] --mt_indices 대신 --mt_range를 사용하여 시작과 끝 범위를 정수로 2개 입력받음
     parser.add_argument("--mt_range", type=int, nargs=2, required=True, help="Range of MT indices specified as start and end (e.g., --mt_range 0 24)")
-    parser.add_argument("--useDb", type=str, default="Y", required=True, help="Whether a database insert occurred(default: True")
+    parser.add_argument("--useDb", type=str, default="Y", required=True, help="Whether a database insert occurred(default: Y")
     parser.add_argument("--output_dir", type=str,  help="Directory to save the processed JSON files")
 
     args = parser.parse_args()
