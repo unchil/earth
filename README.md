@@ -49,11 +49,11 @@ In `index.html` and `earth.js`, the buttons under the **Height** menu (`class="s
 | **7 (Stability)** | `6` | `CAPE` | 대기불안정도 (CAPE, J/kg) | 대기 대류 유효 전위 에너지 |
 
 
-## 🌊 데이터 수집 및 변환 (RTOFS to GRIB2 JSON)
+##  데이터 수집 및 변환 (RTOFS to GRIB2 JSON)
 
 NOAA NOMADS 서버 등에서 제공하는 RTOFS(Rapid Refresh Ocean Forecast System) 해양 수치 모델의 NetCDF 데이터를 표준 지리적 위도/경도(Rectilinear Grid) 체계로 리샘플링하고, 웹 시각화 환경(`deck.gl` 등)에서 고속으로 활용할 수 있는 GRIB2 형태의 JSON 페이로드로 변환합니다.
 
-### 🛠️ 주요 해결 과제 및 최적화 전략
+###  주요 해결 과제 및 최적화 전략
 1. **곡선 좌표계(Curvilinear Grid) 처리**
     - 해양 모델은 왜곡된 2차원 곡선 좌표계를 사용하므로 단순 1차원 슬라이싱(`ds.sel()`)이 불가능합니다.
     - `scipy.interpolate.LinearNDInterpolator`를 활용하여 불규칙한 2차원 격자점(Points)을 $1^\circ \times 1^\circ$ 정규 격자에 선형 보간합니다.
@@ -64,7 +64,7 @@ NOAA NOMADS 서버 등에서 제공하는 RTOFS(Rapid Refresh Ocean Forecast Sys
 4. **메모리 절약형 슬라이싱 (Lazy Loading)**
     - 대용량 데이터셋 전체를 메모리에 올리지 않고, `xarray`의 Dask 기반 지연 로딩(`chunks={"MT": 1}`)과 타임스텝별 표층(`Layer=0`) 슬라이싱을 적용하여 메모리 누수를 방지합니다.
 
-### 💻 핵심 변환 코드 요약
+###  핵심 변환 코드 요약
 
 ```python
 import os
@@ -105,24 +105,23 @@ interp_u = LinearNDInterpolator(points, u_vals_sample)
 
 **NetCDF 데이터 다운로드 및 컨버팅 스크립트 [/public/bin](https://github.com/unchil/earth/tree/dc399151da1c8bc7f8adc8452d2a14cb4b03aaa3/public/bin) 에 실행 스크립트가 존재 합니다.**
 
-
 ---
 
-## ⚙️ 데이터 수집 및 파이프라인 자동화 스크립트 (`public/bin/`)
+##  데이터 수집 및 파이프라인 자동화 스크립트 (`public/bin/`)
 
 프로젝트 내 `public/bin/` 디렉토리에는 NOAA NOMADS 서버로부터 대기(GFS) 및 해양(RTOFS) 데이터를 수집, 변환, 병합하는 자동화 파이프라인 스크립트가 포함되어 있습니다.
 
-### 📜 주요 스크립트 구성
+###  주요 스크립트 구성
 
-| 스크립트 파일 | 설명 및 기능 |
-|:---|:---|
+| 스크립트 파일 | 설명 및 기능                                                                                                                                                                                   |
+|:---|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `gfs_Collector.py` | **GFS 대기 데이터 자동 수집 및 디코딩**<br>- NOMADS 서버에서 최신 GFS 사이클 및 변수(`UGRD`, `VGRD`, `TMP`, `RH`)를 자동 다운로드<br>- SQLite 데이터베이스 저장 옵션(`--useDb Y`) 및 `grib2json` 디코딩을 지원하며, 결측 시 이전 날짜 데이터 재시도 로직 포함 |
-| `RtofsCollector.py` | **RTOFS 해양 데이터 자동 수집**<br>- NOAA NOMADS 서버의 최신 `rtofs.YYYYMMDD` 폴더 탐색<br>- 최신 표층 해류 NetCDF 파일(`rtofs_glo_uv_*_hcasts.nc.gz`) 자동 다운로드 및 압축 해제 처리 |
-| `RtofsInterpToGribJson.py` | **RTOFS NetCDF 보간 및 GRIB JSON 변환**<br>- 불규칙 곡선 좌표계를 $1^\circ \times 1^\circ$ 정규 격자로 보간 (`LinearNDInterpolator`)<br>- `xarray` Dask 지연 로딩 기반 메모리 최적화 및 `catalog.json` / SQLite DB 저장 지원 |
-| `rtofs_pipeline.py` | **RTOFS 데이터 수집-변환 파이프라인 CLI**<br>- 수집(`RtofsCollector.py`) $\rightarrow$ 탐색 $\rightarrow$ 보간 및 JSON 변환(`RtofsInterpToGribJson.py`) 전 과정을 일괄 실행하는 CLI 파이프라인 |
-| `MergeGribJson.py` | **GRIB2 해류 데이터 병합**<br>- 지정된 디렉토리의 `.grb2` 파일들로부터 U/V 성분 해류 데이터를 추출하고, 단일 JSON 파일로 병합 및 자동 정렬 |
+| `RtofsCollector.py` | **RTOFS 해양 데이터 자동 수집**<br>- NOAA NOMADS 서버의 최신 `rtofs.YYYYMMDD` 폴더 탐색<br>- 최신 표층 해류 NetCDF 파일(`rtofs_glo_uv_*_hcasts.nc.gz`) 자동 다운로드 및 압축 해제 처리                                           |
+| `RtofsInterpToGribJson.py` | **RTOFS NetCDF 보간 및 GRIB JSON 변환**<br>- 불규칙 곡선 좌표계를 정규 격자로 보간 (`LinearNDInterpolator`)<br>- `xarray` Dask 지연 로딩 기반 메모리 최적화 및 `catalog.json` / SQLite DB 저장 지원                             |
+| `rtofs_pipeline.py` | **RTOFS 데이터 수집-변환 파이프라인 CLI**<br>- 수집(`RtofsCollector.py`) $\rightarrow$ 탐색 $\rightarrow$ 보간 및 JSON 변환(`RtofsInterpToGribJson.py`) 전 과정을 일괄 실행하는 CLI 파이프라인                                |
+| `MergeGribJson.py` | **GRIB2 해류 데이터 병합**<br>- 지정된 디렉토리의 `.grb2` 파일들로부터 U/V 성분 해류 데이터를 추출하고, 단일 JSON 파일로 병합 및 자동 정렬                                                                                             |
 
-### 🚀 파이프라인 실행 예시
+###  파이프라인 실행 예시
 
 1. GFS 대기 데이터 수집 (최대 예보시간 72시간, DB 삽입 사용)
 ```python
