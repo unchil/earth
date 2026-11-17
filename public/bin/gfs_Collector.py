@@ -17,34 +17,225 @@ import numpy as np
 # SSL 인증서 검증 비활성화 설정 추가
 ssl._create_default_https_context = ssl._create_unverified_context
 
-def get_categoryName(name):
-    match name:
-        case "u":
-            return "wind"
-        case "v":
-            return "wind"
-        case "t":
-            return "temperature"
-        case "r":
-            return "relative_humidity"
-        case _:
-            return "Unknown category"
+# 서버 에러 또는 데이터 미존재 시 응답 내용에 포함될 수 있는 패턴 목록 (추가 예외사항 발생 시 여기에 추가)
+INVALID_RESPONSE_PATTERNS = [
+    b">data file is not present",
+    b"404 Not Found",
+    b"An error occurred",
+    b"File not found",
+    b"<html",  # GRIB2 binary 파일 대신 HTML 에러 페이지가 리턴된 경우
+]
 
+def is_invalid_response(content: bytes) -> bool:
+    """다운로드한 파일 내용에 에러/예외 응답 패턴이 포함되어 있는지 검증합니다."""
+    return any(pattern.lower() in content.lower() for pattern in INVALID_RESPONSE_PATTERNS)
 
-def fetch_url(url):
+def get_category_name(name: str) -> str:
+    category_map = {
+        "u": "wind",
+        "v": "wind",
+        "t": "temperature",
+        "r": "relative_humidity"
+    }
+    return category_map.get(name, "Unknown category")
+
+def fetch_url(url: str) -> str:
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req) as response:
             return response.read().decode("utf-8")
     except Exception as e:
         print(f"URL 요청 실패 ({url}): {e}")
-        return f"URL 요청 실패 ({url}): {e}"
+        return ""
+
+def process_db_insert(src_file: Path, conn: sqlite3.Connection, offset_hours: int):
+    cursor = conn.cursor()
+    surface = 'isobaric'
+    levels = [1000., 850., 700., 500., 250., 70., 10.]
+    category_names = ["u", "v", "t", "r"]
+    batch_data = []
+    current_data = []
+
+    for level in levels:
+        ds = xr.open_dataset(
+            src_file,
+            engine="cfgrib",
+            backend_kwargs={
+                "filter_by_keys": {"typeOfLevel": "isobaricInhPa", "level": level},
+                "indexpath": "",
+            },
+        )
+
+        center_name = ds.attrs.get('GRIB_centreDescription', '')
+        ref_time = pd.to_datetime(ds["time"].values).strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        valid_time = pd.to_datetime(ds["valid_time"].values).strftime('%Y%m%d%H')
+        forecast_time = int(ds['step'].values / np.timedelta64(1, 'h'))
+        surface1_value = float(ds["isobaricInhPa"].item()) * 100
+
+        wind_data = []
+
+        for category in category_names:
+            shape = ds.data_vars[category].shape
+            number_points = ds.data_vars[category].values.flatten().size
+            la2 = float(ds[category].latitude.values.min())
+            la1 = float(ds[category].latitude.values.max())
+            lo1 = float(ds[category].longitude.values.min())
+            lo2 = float(ds[category].longitude.values.max())
+            data = [round(float(x), 5) for x in ds[category].values.flatten()]
+
+            payload = [{
+                "header": {
+                    "center": 7,
+                    "centerName": center_name,
+                    "refTime": ref_time,
+                    "forecastTime": forecast_time,
+                    "surface1Value": surface1_value,
+                    "numberPoints": number_points,
+                    "winds": "true",
+                    "nx": shape[1],
+                    "ny": shape[0],
+                    "basicAngle": 0,
+                    "lo1": lo1,
+                    "la1": la1,
+                    "lo2": lo2,
+                    "la2": la2,
+                    "dx": 1.0,
+                    "dy": 1.0,
+                },
+                "data": data,
+            }]
+
+            if category in ("u", "v"):
+                wind_data.extend(payload)
+            else:
+                batch_data.append((valid_time, 'air', get_category_name(category), surface, f"{int(level)}hPa", json.dumps(payload)))
+
+        batch_data.append((valid_time, 'air', get_category_name('u'), surface, f"{int(level)}hPa", json.dumps(wind_data)))
+
+        if offset_hours == 0:
+            current_data.extend(batch_data)
+
+    try:
+        query_batch = '''INSERT INTO Earth_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(forecast_time, mode, type, surface, level ) DO UPDATE SET
+            grib2json = excluded.grib2json'''
+        cursor.executemany(query_batch, batch_data)
+
+        query_current = '''INSERT INTO Earth_Current_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(forecast_time, mode, type, surface, level ) DO UPDATE SET
+            grib2json = excluded.grib2json'''
+        cursor.executemany(query_current, current_data)
+        conn.commit()
+
+        print(f">> {src_file.name}:{len(batch_data)} 데이터가 일괄 삽입되었습니다.")
+    except Exception as e:
+        print(f"데이터 삽입 중 오류 발생: {e}")
+
+def process_file_create(src_file: Path, offset_hours: int, date_str:str, latest_cycle:str):
+    LAYERS = [
+        ("isobaric", "1000hPa", "100", "100000"),
+        ("isobaric", "850hPa", "100", "85000"),
+        ("isobaric", "700hPa", "100", "70000"),
+        ("isobaric", "500hPa", "100", "50000"),
+        ("isobaric", "250hPa", "100", "25000"),
+        ("isobaric", "70hPa", "100", "7000"),
+        ("isobaric", "10hPa", "100", "1000"),
+    ]
+    PARAMETERS = [
+        ("2", "Momentum", "wind", "wind"),
+        ("0", "Temperature", "0", "temperature"),
+        ("1", "Moisture", "1", "relative_humidity"),
+    ]
+    DIR_ATMOS = Path("../weather")
+    # offset_hours를 더한 대상 시각 계산
+
+    # 기준 시각 (UTC)
+    base_dt = datetime.strptime(f"{date_str}{latest_cycle}", "%Y%m%d%H")
+    target_dt = base_dt + timedelta(hours=offset_hours)
+    target_date_dir = target_dt.strftime("%Y/%m/%d")
+    target_dir = DIR_ATMOS / target_date_dir
+    target_dir.mkdir(parents=True, exist_ok=True)
+    prefix = target_dt.strftime("%H%M")
+
+    for surface, level, fs, fv in LAYERS:
+        for fc, fc_name, fp, var in PARAMETERS:
+            target_filename = f"{prefix}-{var}-{surface}-{level}-gfs-1.0.json"
+            target_file_path = target_dir / target_filename
+            print(
+                f"Decoding {filename} -> {target_date_dir}/{target_filename} (surface:"
+                f" {fs}, value: {fv})..."
+            )
+            # grib2json 명령어 실행
+            cmd = [
+                "grib2json",
+                "-d",
+                "-n",
+                "-c",
+                "--fc",
+                fc,
+                "--fp",
+                fp,
+                "--fs",
+                fs,
+                "--fv",
+                fv,
+                "-o",
+                str(target_file_path),
+                str(src_file),
+            ]
+
+            try:
+                subprocess.run(cmd, check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"grib2json 실행 오류: {e}")
+                continue
+            except FileNotFoundError as e:
+                print(f" 오류: grib2json 파일을 찾을 수 없습니다. 프로그램을 종료합니다. 경로: {e.filename} ")
+                sys.exit(0)
+            else:
+                if(useDb == "Y"):
+                    print("DB Insert 를 위한 튜플 생성")
+                    with open(target_file_path, "r", encoding="utf-8") as f:
+                        try:
+                            data = json.load(f)
+                            json_string = json.dumps(data)
+                            batch_data.append( (target_dt.strftime("%Y%m%d%H"), "air", var, surface, level, json_string ) )
+                            if f_num == "000":
+                                current_data.append( (target_dt.strftime("%Y%m%d%H"), "air", var, surface, level, json_string ) )
+                        except json.JSONDecodeError as err:
+                            print(f"  [오류] JSON 파싱 실패 ({json_path}): {err}")
+
+
+            # 1000hPa 파일 복사 처리
+            if level == "1000hPa":
+                surface_level_path = (
+                        target_dir / f"{prefix}-{var}-surface-level-gfs-1.0.json"
+                )
+                shutil.copy(target_file_path, surface_level_path)
+
+            # f_num이 "000"일 경우 current 디렉터리에도 복사
+            if f_num == "000":
+                current_dir = DIR_ATMOS / "current"
+                current_dir.mkdir(parents=True, exist_ok=True)
+                current_file_path = (
+                        current_dir / f"current-{var}-{surface}-{level}-gfs-1.0.json"
+                )
+                shutil.copy(target_file_path, current_file_path)
+
+                if level == "1000hPa":
+                    current_surface_path = (
+                            current_dir / f"current-{var}-surface-level-gfs-1.0.json"
+                    )
+                    shutil.copy(target_file_path, current_surface_path)
+
+
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--maxH", type=int, nargs=1, default=72, help="Maximum forecast duration (default: 72)")
     parser.add_argument("--retry", type=int, nargs=1, default=3, help="Maximum number of retries (default: 3)")
-    parser.add_argument("--useDb", type=str, default="Y", help="Whether a database insert occurred(default: Y")
+    parser.add_argument("--useDb", type=str, default="Y", choices=["Y", "N"], help="Whether a database insert occurred(default: Y")
 
     args = parser.parse_args()
 
@@ -93,11 +284,8 @@ def main():
     dir_path = f"/{latest_dir}/{latest_cycle}/atmos"
 
     # 쿼리 파라미터 생성
-    params_dict = {}
-    for v in VARIABLES:
-        params_dict[f"var_{v}"] = "on"
-    for l in LEVELS:
-        params_dict[f"lev_{l}"] = "on"
+    params_dict = {f"var_{v}": "on" for v in VARIABLES}
+    params_dict.update({f"lev_{l}": "on" for l in LEVELS})
 
     # 다운로드 디렉터리 초기화
     if DIR_DOWNLOAD.exists():
@@ -132,7 +320,7 @@ def main():
         with open(tmp_file, "rb") as f:
             content = f.read(2048)
 
-        if b">data file is not present" in content:
+        if is_invalid_response(content):
             # 최초 다운로드 시도시 에러가 발생하면 이전 일자로 변경
             if i == 0:
                 retry_count += 1
@@ -146,7 +334,7 @@ def main():
                     sys.exit(0)
 
                 print(
-                    f"-> [{retry_count}/{max_retry}] {filename}: 서버에 데이터 파일이 없습니다."
+                    f"-> [{retry_count}/{max_retry}] {filename}: 서버에 정상 데이터 파일이 없습니다."
                     " 하루 이전 날짜의 마지막 사이클로 전환합니다."
                 )
 
@@ -167,8 +355,6 @@ def main():
                 # 다운로드 폴더 재초기화
                 shutil.rmtree(DIR_DOWNLOAD)
                 DIR_DOWNLOAD.mkdir(parents=True, exist_ok=True)
-
-                # f000부터 다시 시도하기 위해 continue (i는 0으로 유지됨)
                 continue
             else:
                 print(f"-> {filename}: 서버에 데이터 파일이 아직 없습니다. 스킵합니다.")
@@ -195,7 +381,7 @@ def main():
         print(f"정보: {DIR_DOWNLOAD} 에 디코딩할 GRIB2 파일이 없습니다. 종료합니다.")
         sys.exit(0)
 
-
+    conn = None
     if args.useDb == "Y":
         conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
         cursor = conn.cursor()
@@ -211,190 +397,12 @@ def main():
         offset_hours = int(f_num)
 
         if args.useDb == "Y":
-
-            mode = 'air'
-            surface = 'isobaric'
-            levels = [1000.,  850.,  700.,  500.,  250.,   70.,   10.]
-            categoryNames = [ "u", "v", "t", "r"]
-            batch_data = []
-            current_data = []
-
-            for level in levels:
-                ds = xr.open_dataset(
-                    src_file,
-                    engine="cfgrib",
-                    backend_kwargs={
-                        "filter_by_keys": {"typeOfLevel": "isobaricInhPa", "level": level},
-                        "indexpath": "",
-                    },)
-
-                centerName = ds.attrs['GRIB_centreDescription']
-                refTime = pd.to_datetime(ds["time"].values ).strftime('%Y-%m-%dT%H:%M:%S.000Z')
-                validTime = pd.to_datetime(ds["valid_time"].values ).strftime('%Y%m%d%H')
-                forecastTime = int(f"{int(ds['step'].values / np.timedelta64(1, 'h')):02d}")
-                surface1Value = float(ds["isobaricInhPa"].item()) * 100
-
-                wind_data = []
-
-                for category in categoryNames:
-                    shape = ds.data_vars[category].shape
-                    numberPoints = ds.data_vars[category].values.flatten().size
-                    la2 = float(ds[category].latitude.values.min())
-                    la1 = float(ds[category].latitude.values.max())
-                    lo1 = float(ds[category].longitude.values.min())
-                    lo2 = float(ds[category].longitude.values.max())
-                    data = [ round(float(x), 5) for x in ds[category].values.flatten() ]
-
-                    #   payload = [{"header":{"center":7,"centerName":centerName, "refTime":refTime, "forecastTime":forecastTime, "surface1Value":surface1Value,"numberPoints":numberPoints,"winds":"true","nx":shape[1],"ny":shape[0],"basicAngle":0,"lo1":lo1,"la1":la1,"lo2":lo2,"la2":la2,"dx":1.0,"dy":1.0}, "data":data}]
-                    payload = [{
-                        "header": {
-                            "center": 7,
-                            "centerName": centerName,
-                            "refTime": refTime,
-                            "forecastTime": forecastTime,
-                            "surface1Value": surface1Value,
-                            "numberPoints": numberPoints,
-                            "winds": "true",
-                            "nx": shape[1],
-                            "ny": shape[0],
-                            "basicAngle": 0,
-                            "lo1": lo1,
-                            "la1": la1,
-                            "lo2": lo2,
-                            "la2": la2,
-                            "dx": 1.0,
-                            "dy": 1.0,
-                        },
-                        "data": data,
-                    }]
-
-                    if(category in ("u", "v")):
-                        wind_data.extend(payload)
-                    else:
-                        batch_data.append( (validTime, mode, get_categoryName(category), surface, f"{int(level)}hPa", json.dumps(payload)) )
-
-                batch_data.append( (validTime, mode, get_categoryName('u'), surface, f"{int(level)}hPa", json.dumps(wind_data)))
-
-                if(offset_hours == 0):
-                    current_data.extend( batch_data)
-
-            try:
-                query_batch = '''INSERT INTO Earth_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(forecast_time, mode, type, surface, level ) DO UPDATE SET
-                    grib2json = excluded.grib2json'''
-                # db insert job
-                cursor.executemany(query_batch, batch_data)
-                conn.commit()
-
-                query_current = '''INSERT INTO Earth_Current_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(forecast_time, mode, type, surface, level ) DO UPDATE SET
-                    grib2json = excluded.grib2json '''
-                cursor.executemany(query_current, current_data)
-                conn.commit()
-
-                print(f">> {filename}:{len(batch_data)} 데이터가 일괄 삽입되었습니다.")
-            except Exception as e:
-                print(f"데이터 삽입 중 오류 발생: {e}")
-
-
+            process_db_insert(src_file, conn, offset_hours)
         else:
-            LAYERS = [
-                ("isobaric", "1000hPa", "100", "100000"),
-                ("isobaric", "850hPa", "100", "85000"),
-                ("isobaric", "700hPa", "100", "70000"),
-                ("isobaric", "500hPa", "100", "50000"),
-                ("isobaric", "250hPa", "100", "25000"),
-                ("isobaric", "70hPa", "100", "7000"),
-                ("isobaric", "10hPa", "100", "1000"),
-            ]
-            PARAMETERS = [
-                ("2", "Momentum", "wind", "wind"),
-                ("0", "Temperature", "0", "temperature"),
-                ("1", "Moisture", "1", "relative_humidity"),
-            ]
-            DIR_ATMOS = Path("../weather")
-            # offset_hours를 더한 대상 시각 계산
-
-            # 기준 시각 (UTC)
-            base_dt = datetime.strptime(f"{date_str}{latest_cycle}", "%Y%m%d%H")
-            target_dt = base_dt + timedelta(hours=offset_hours)
-            target_date_dir = target_dt.strftime("%Y/%m/%d")
-            target_dir = DIR_ATMOS / target_date_dir
-            target_dir.mkdir(parents=True, exist_ok=True)
-            prefix = target_dt.strftime("%H%M")
-
-            for surface, level, fs, fv in LAYERS:
-                for fc, fc_name, fp, var in PARAMETERS:
-                    target_filename = f"{prefix}-{var}-{surface}-{level}-gfs-1.0.json"
-                    target_file_path = target_dir / target_filename
-                    print(
-                        f"Decoding {filename} -> {target_date_dir}/{target_filename} (surface:"
-                        f" {fs}, value: {fv})..."
-                    )
-                    # grib2json 명령어 실행
-                    cmd = [
-                        "grib2json",
-                        "-d",
-                        "-n",
-                        "-c",
-                        "--fc",
-                        fc,
-                        "--fp",
-                        fp,
-                        "--fs",
-                        fs,
-                        "--fv",
-                        fv,
-                        "-o",
-                        str(target_file_path),
-                        str(src_file),
-                    ]
-
-                    try:
-                        subprocess.run(cmd, check=True)
-                    except subprocess.CalledProcessError as e:
-                        print(f"grib2json 실행 오류: {e}")
-                        continue
-                    except FileNotFoundError as e:
-                        print(f" 오류: grib2json 파일을 찾을 수 없습니다. 프로그램을 종료합니다. 경로: {e.filename} ")
-                        sys.exit(0)
-                    else:
-                        if(useDb == "Y"):
-                            print("DB Insert 를 위한 튜플 생성")
-                            with open(target_file_path, "r", encoding="utf-8") as f:
-                                try:
-                                    data = json.load(f)
-                                    json_string = json.dumps(data)
-                                    batch_data.append( (target_dt.strftime("%Y%m%d%H"), "air", var, surface, level, json_string ) )
-                                    if f_num == "000":
-                                        current_data.append( (target_dt.strftime("%Y%m%d%H"), "air", var, surface, level, json_string ) )
-                                except json.JSONDecodeError as err:
-                                    print(f"  [오류] JSON 파싱 실패 ({json_path}): {err}")
+            process_file_create(src_file, offset_hours, date_str, latest_cycle)
 
 
-                    # 1000hPa 파일 복사 처리
-                    if level == "1000hPa":
-                        surface_level_path = (
-                                target_dir / f"{prefix}-{var}-surface-level-gfs-1.0.json"
-                        )
-                        shutil.copy(target_file_path, surface_level_path)
-
-                    # f_num이 "000"일 경우 current 디렉터리에도 복사
-                    if f_num == "000":
-                        current_dir = DIR_ATMOS / "current"
-                        current_dir.mkdir(parents=True, exist_ok=True)
-                        current_file_path = (
-                                current_dir / f"current-{var}-{surface}-{level}-gfs-1.0.json"
-                        )
-                        shutil.copy(target_file_path, current_file_path)
-
-                        if level == "1000hPa":
-                            current_surface_path = (
-                                    current_dir / f"current-{var}-surface-level-gfs-1.0.json"
-                            )
-                            shutil.copy(target_file_path, current_surface_path)
-
-    if args.useDb == "Y":
+    if conn:
         conn.close()
 
     print("=== 모든 데이터 디코딩 완료 ===")
