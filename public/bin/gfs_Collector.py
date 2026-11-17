@@ -44,7 +44,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--maxH", type=int, nargs=1, default=72, help="Maximum forecast duration (default: 72)")
     parser.add_argument("--retry", type=int, nargs=1, default=3, help="Maximum number of retries (default: 3)")
-    parser.add_argument("--useDb", type=str, default="Y", help="Whether a database insert occurred(default: True")
+    parser.add_argument("--useDb", type=str, default="Y", help="Whether a database insert occurred(default: Y")
 
     args = parser.parse_args()
 
@@ -133,8 +133,8 @@ def main():
             content = f.read(2048)
 
         if b">data file is not present" in content:
+            # 최초 다운로드 시도시 에러가 발생하면 이전 일자로 변경
             if i == 0:
-                # ── [무한 루프 방지 검증 로직] ──
                 retry_count += 1
                 if retry_count > max_retry:
                     print(
@@ -143,7 +143,7 @@ def main():
                     )
                     if tmp_file.exists():
                         tmp_file.unlink()
-                    sys.exit(1)
+                    sys.exit(0)
 
                 print(
                     f"-> [{retry_count}/{max_retry}] {filename}: 서버에 데이터 파일이 없습니다."
@@ -179,13 +179,12 @@ def main():
 
         # 정상 파일인 경우 retry_count 초기화 (성공적인 다운로드 진행 시)
         retry_count = 0
-
         # 정상 파일 이동
         final_file = DIR_DOWNLOAD / filename
         if tmp_file.exists():
             shutil.move(tmp_file, final_file)
-
         i += 3
+
 
     print("=== 모든 데이터 다운로드 완료 ===")
 
@@ -194,7 +193,7 @@ def main():
 
     if not src_files:
         print(f"정보: {DIR_DOWNLOAD} 에 디코딩할 GRIB2 파일이 없습니다. 종료합니다.")
-        sys.exit(1)
+        sys.exit(0)
 
 
     if args.useDb == "Y":
@@ -358,7 +357,7 @@ def main():
                         continue
                     except FileNotFoundError as e:
                         print(f" 오류: grib2json 파일을 찾을 수 없습니다. 프로그램을 종료합니다. 경로: {e.filename} ")
-                        sys.exit(1)
+                        sys.exit(0)
                     else:
                         if(useDb == "Y"):
                             print("DB Insert 를 위한 튜플 생성")

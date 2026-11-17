@@ -7,7 +7,7 @@ import time
 def main():
     parser = argparse.ArgumentParser(description="RTOFS Data Collection and Grib JSON Conversion Pipeline CLI")
 
-    parser.add_argument("--mt_range", type=int, nargs=2, required=True, help="Range of MT indices specified as start and end (e.g., --mt_range 0 8)")
+    parser.add_argument("--mt_range", type=int, nargs=2, default=[0, 8],help="Range of MT indices specified as start and end (e.g., --mt_range 0 8)")
     parser.add_argument("--useDb", type=str, default="Y", help="Whether a database insert occurred(default: Y")
     parser.add_argument("--converter_script", type=str, default="RtofsInterpToGribJson.py", help="Path to the conversion script (default: RtofsInterpToGribJson.py)")
     parser.add_argument("--output_dir", type=str,  default="./", help="Directory to save the processed JSON files")
