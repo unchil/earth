@@ -531,6 +531,41 @@ var products = function() {
             }
         },
 
+        "ice_concentration": {
+            matches: _.matches({param: "ocean", overlayType: "ice_concentration"}),
+            create: function(attr) {
+                return buildProduct({
+                    field: "scalar",
+                    type: "ice_concentration",
+                    description: localize({
+                        name: {en: "Ice Concentration"},
+                        qualifier: {en: " @ " + describeSurface(attr)}
+                    }),
+                    paths: [earthDataServiceUrl(attr, attr.overlayType)],
+                    date: gfsDate(attr),
+                    builder: function(file) {
+                        var record = file[0], data = record.data;
+                        return {
+                            header: record.header,
+                            interpolate: bilinearInterpolateScalar,
+                            data: function(i) {
+                                return data[i];
+                            }
+                        };
+                    },
+                    units: [
+                        {label: "%", conversion: function(x) { return x; }, precision: 0}
+                    ],
+                    scale: {
+                        bounds: [0, 5],
+                        gradient: function(v, a) {
+                            return µ.sinebowColor(Math.min(v, 5) / 5, a);
+                        }
+                    }
+                });
+            }
+        },
+
         "off": {
             matches: _.matches({overlayType: "off"}),
             create: function() {

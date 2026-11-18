@@ -1121,6 +1121,9 @@
                 case "Currents":
                     configuration.save({overlayType: "default"});
                     break;
+                case "IceConcentration":
+                    configuration.save( {param: "ocean", overlayType: "ice_concentration"});
+                    break;
             }
         });
 
@@ -1133,6 +1136,8 @@
                 value = "None";
             } else if (overlayType === "default") {
                 value = "Currents";
+            } else if (overlayType === "ice_concentration") {
+                value = "IceConcentration";
             } else {
                 value = overlayType;
             }
