@@ -99,7 +99,7 @@ def main():
     parser.add_argument("--maxH", type=int, nargs=1, default=72, help="Maximum forecast duration (default: 72)")
     parser.add_argument("--retry", type=int, nargs=1, default=3, help="Maximum number of retries (default: 3)")
     parser.add_argument("--useDb", type=str, default="Y",  choices=["Y", "N"], help="Whether a database insert occurred(default: Y")
-    parser.add_argument("--type", type=str, default="all",  choices=["all", "download", "decoding"], help="Processing Option(default: all")
+    parser.add_argument("--type", type=str, default="decoding",  choices=["all", "download", "decoding"], help="Processing Option(default: all")
 
     args = parser.parse_args()
 
@@ -275,6 +275,7 @@ def main():
                         }]
                         if(offset_hours == 0):
                             current_data.append( (validTime, mode, get_category_name(category), surface, level, json.dumps(payload)) )
+                            batch_data.append( (validTime, mode, get_category_name(category), surface, level, json.dumps(payload)) )
                         else:
                             batch_data.append( (validTime, mode, get_category_name(category), surface, level, json.dumps(payload)) )
 
@@ -334,6 +335,7 @@ def main():
 
                                 if offset_hours == 0:
                                     current_data.append( (validTime, mode, get_category_name(category), surface, f"{int(level)}hPa", json.dumps(wind_data)) )
+                                    batch_data.append( (validTime, mode, get_category_name(category), surface, f"{int(level)}hPa", json.dumps(wind_data)) )
                                 else:
                                     batch_data.append( (validTime, mode, get_category_name(category), surface, f"{int(level)}hPa", json.dumps(wind_data)) )
 
@@ -370,6 +372,7 @@ def main():
 
                                 if(offset_hours == 0):
                                     current_data.append( ( validTime, mode, get_category_name(category), surface, f"{int(level)}hPa", json.dumps(payload)))
+                                    batch_data.append( (validTime, mode, get_category_name(category), surface, f"{int(level)}hPa", json.dumps(payload)) )
                                 else:
                                     batch_data.append( (validTime, mode, get_category_name(category), surface, f"{int(level)}hPa", json.dumps(payload)) )
 
@@ -388,12 +391,13 @@ def main():
                     cursor.executemany(query_current, current_data)
                     conn.commit()
 
-                    print(f">> {filename}:{len(batch_data)} 데이터가 일괄 삽입되었습니다.")
+                    print(f">> {filename}: 데이터가 Insert 되었습니다.")
                 except Exception as e:
-                    print(f"데이터 삽입 중 오류 발생: {e}")
+                    print(f"데이터 Insert 중 오류 발생: {e}")
 
 
         if conn:
+            print(f">> Earth_Tbl:{len(batch_data)}, Earth_Current_Tbl:{len(current_data)} 데이터가 일괄 삽입되었습니다.")
             conn.close()
 
 
