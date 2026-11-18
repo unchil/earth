@@ -56,9 +56,9 @@ NOAA NOMADS 서버 등에서 제공하는 RTOFS(Rapid Refresh Ocean Forecast Sys
 ###  주요 해결 과제 및 최적화 전략
 1. **곡선 좌표계(Curvilinear Grid) 처리**
     - 해양 모델은 왜곡된 2차원 곡선 좌표계를 사용하므로 단순 1차원 슬라이싱(`ds.sel()`)이 불가능합니다.
-    - `scipy.interpolate.LinearNDInterpolator`를 활용하여 불규칙한 2차원 격자점(Points)을 $1^\circ \times 1^\circ$ 정규 격자에 선형 보간합니다.
+    - `scipy.interpolate.LinearNDInterpolator`를 활용하여 불규칙한 2차원 격자점(Points)을 1도 정규 격자에 선형 보간합니다.
 2. **경도(Longitude) 범위 정규화**
-    - $360^\circ$를 초과하여 누적된 경도 값(예: $1000^\circ$ 이상)을 모듈로 연산을 통해 전지구 표준 범위($0^\circ \sim 360^\circ$)로 교정합니다.
+    - 360도를 초과하여 누적된 경도 값을 모듈로 연산을 통해 전지구 표준 범위(0~360도)로 교정합니다.
 3. **Delaunay Triangulation 뼈대 재사용을 통한 성능 최적화**
     - 매 타임스텝마다 삼각화(Triangulation)를 반복하면 심각한 성능 저하가 발생하므로, 최초 1회만 Delaunay Triangulation 기하 구조 뼈대를 빌드하고 이후 타임스텝에서는 값만 교체(`interp.values = ...`)하여 고속 처리를 수행합니다.
 4. **메모리 절약형 슬라이싱 (Lazy Loading)**
@@ -115,7 +115,7 @@ interp_u = LinearNDInterpolator(points, u_vals_sample)
 
 | 스크립트 파일 | 설명 및 기능                                                                                                                                                                                   |
 |:---|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `gfs_Collector.py` | **GFS 대기 데이터 자동 수집 및 디코딩**<br>- NOMADS 서버에서 최신 GFS 사이클 및 변수(`UGRD`, `VGRD`, `TMP`, `RH`)를 자동 다운로드<br>- SQLite 데이터베이스 저장 옵션(`--useDb Y`) 및 `grib2json` 디코딩을 지원하며, 결측 시 이전 날짜 데이터 재시도 로직 포함 |
+| `gfs_Collector.py` | **GFS 대기 데이터 자동 수집 및 디코딩**<br>- NOMADS 서버에서 최신 GFS 사이클 및 변수(`UGRD`, `VGRD`, `TMP`, `RH`)를 자동 다운로드<br>- SQLite 데이터베이스 저장 옵션(`--useDb Y`)  지원하며, 결측 시 이전 날짜 데이터 재시도 로직 포함 |
 | `RtofsCollector.py` | **RTOFS 해양 데이터 자동 수집**<br>- NOAA NOMADS 서버의 최신 `rtofs.YYYYMMDD` 폴더 탐색<br>- 최신 표층 해류 NetCDF 파일(`rtofs_glo_uv_*_hcasts.nc.gz`) 자동 다운로드 및 압축 해제 처리                                           |
 | `RtofsInterpToGribJson.py` | **RTOFS NetCDF 보간 및 GRIB JSON 변환**<br>- 불규칙 곡선 좌표계를 정규 격자로 보간 (`LinearNDInterpolator`)<br>- `xarray` Dask 지연 로딩 기반 메모리 최적화 및 `catalog.json` / SQLite DB 저장 지원                             |
 | `rtofs_pipeline.py` | **RTOFS 데이터 수집-변환 파이프라인 CLI**<br>- 수집(`RtofsCollector.py`)  탐색, 보간 및 JSON 변환(`RtofsInterpToGribJson.py`) 전 과정을 일괄 실행하는 CLI 파이프라인                                                          |
