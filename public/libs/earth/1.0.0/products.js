@@ -557,9 +557,9 @@ var products = function() {
                         {label: "%", conversion: function(x) { return x; }, precision: 0}
                     ],
                     scale: {
-                        bounds: [0, 5],
+                        bounds: [0, 1],
                         gradient: function(v, a) {
-                            return µ.sinebowColor(Math.min(v, 5) / 5, a);
+                            return µ.sinebowColor(Math.min(v, 1) / 1, a);
                         }
                     }
                 });
