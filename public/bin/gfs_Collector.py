@@ -228,9 +228,9 @@ def main():
 
                 for category in categoryNames:
                     if category == "siconc":
-                        mode = 'ocean'
-                        surface = 'surface'
-                        level = 'level'
+                        mode = 'air'
+                        surface = 'isobaric'
+                        level = 1000
 
                         ds = xr.open_dataset(
                             src_file,
@@ -258,7 +258,7 @@ def main():
                                 "centerName": centerName,
                                 "refTime": refTime,
                                 "forecastTime": forecastTime,
-                                "surface1Value": surface1Value,
+                                "surface1Value": 10000,
                                 "numberPoints": numberPoints,
                                 "winds": "true",
                                 "nx": shape[1],
@@ -273,11 +273,13 @@ def main():
                             },
                             "data": data,
                         }]
-                        if(offset_hours == 0):
-                            current_data.append( (validTime, mode, get_category_name(category), surface, level, json.dumps(payload)) )
-                            batch_data.append( (validTime, mode, get_category_name(category), surface, level, json.dumps(payload)) )
+
+                        if offset_hours == 0:
+                            current_data.append( (validTime, mode, get_category_name(category), surface, f"{int(level)}hPa", json.dumps(payload)) )
+                            batch_data.append( (validTime, mode, get_category_name(category), surface, f"{int(level)}hPa", json.dumps(payload)) )
                         else:
-                            batch_data.append( (validTime, mode, get_category_name(category), surface, level, json.dumps(payload)) )
+                            batch_data.append( (validTime, mode, get_category_name(category), surface, f"{int(level)}hPa", json.dumps(payload)) )
+
 
                     else:
                         mode = 'air'
