@@ -1059,6 +1059,9 @@
                 case "RelativeHumidity":
                     configuration.save({overlayType: "relative_humidity"});
                     break;
+                case "IceConcentration":
+                    configuration.save( { overlayType: "ice_concentration"});
+                    break;
             }
         });
 
@@ -1073,6 +1076,8 @@
                 value = "Temperature";
             } else if (overlayType === "relative_humidity") {
                 value = "RelativeHumidity";
+            } else if (overlayType === "ice_concentration") {
+                value = "IceConcentration";
             } else if (overlayType === "off") {
                 value = "None";
             } else {
@@ -1121,9 +1126,7 @@
                 case "Currents":
                     configuration.save({overlayType: "default"});
                     break;
-                case "IceConcentration":
-                    configuration.save( {param: "ocean", overlayType: "ice_concentration"});
-                    break;
+
             }
         });
 
@@ -1136,8 +1139,6 @@
                 value = "None";
             } else if (overlayType === "default") {
                 value = "Currents";
-            } else if (overlayType === "ice_concentration") {
-                value = "IceConcentration";
             } else {
                 value = overlayType;
             }

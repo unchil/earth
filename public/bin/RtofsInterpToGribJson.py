@@ -9,6 +9,7 @@ import pandas as pd
 import time
 from pathlib import Path
 import sqlite3
+from scipy.spatial import Delaunay
 
 def process_file_with_reused_grid(
         file_path:String,
@@ -61,10 +62,16 @@ def process_file_with_reused_grid(
         lon_2d = lon_normalized.values.flatten()
 
         # 고정된 삼각화 격자 구조(Points) 생성을 위해 첫 번째 유효 인덱스 샘플링
+        t0 = time.time()
         first_valid_idx = 0
         u_sample = ds['u_velocity'].isel(MT=first_valid_idx, Layer=0).compute().values.flatten()
         valid_mask = ~np.isnan(u_sample) & ~np.isnan(lat_2d) & ~np.isnan(lon_2d)
         points = np.column_stack((lon_2d[valid_mask], lat_2d[valid_mask]))
+        print(f"총 {len(points)} 포인트 Delaunay 삼각분할 생성 중...")
+        tri = Delaunay(points)
+        print(f" Delaunay 삼각분할 생성 소요 시간: {time.time() - t0:.4f}초 (총 {len(points)} 포인트)")
+
+
         print(f" 첫 번째 타임스텝의 마스크를 기준으로 고정 격자 포인트를 생성")
 
         if len(points) == 0:
@@ -76,12 +83,12 @@ def process_file_with_reused_grid(
 
         t0 = time.time()
         u_vals_sample = u_sample[valid_mask].astype(np.float64)
-        interp_u = LinearNDInterpolator(points, u_vals_sample)
+        interp_u = LinearNDInterpolator(tri, u_vals_sample)
         # V 컴포넌트도 동일한 좌표계를 사용하여 빌드
         v_sample = ds['v_velocity'].isel(MT=first_valid_idx, Layer=0).compute().values.flatten()
         v_vals_sample = v_sample[valid_mask].astype(np.float64)
-        interp_v = LinearNDInterpolator(points, v_vals_sample)
-        print(f" 최초 삼각화 격자 기하 구조 빌드 소요 시간: {time.time() - t0:.4f}초 (총 {len(points)} 포인트)")
+        interp_v = LinearNDInterpolator(tri, v_vals_sample)
+        print(f" 최초 삼각화 격자 기하 구조 빌드 소요 시간: {time.time() - t0:.4f}초 (총 {len(tri)} 포인트)")
 
 
         refTime = pd.to_datetime(mt_array[0]).strftime('%Y-%m-%dT%H:%M:%S.000Z')
@@ -238,8 +245,8 @@ def main():
     parser.add_argument("--files", type=str, nargs="+", required=True, help="List of input .nc file paths separated by spaces")
     # [변경됨] --mt_indices 대신 --mt_range를 사용하여 시작과 끝 범위를 정수로 2개 입력받음
     parser.add_argument("--mt_range", type=int, nargs=2, required=True, help="Range of MT indices specified as start and end (e.g., --mt_range 0 24)")
-    parser.add_argument("--useDb", type=str, default="Y", required=True, help="Whether a database insert occurred(default: Y")
-    parser.add_argument("--output_dir", type=str,  help="Directory to save the processed JSON files")
+    parser.add_argument("--useDb", type=str, default="Y",  choices=["Y", "N"], help="Whether a database insert occurred(default: Y")
+    parser.add_argument("--output_dir", type=str, default=None, help="Directory to save the processed JSON files")
 
     args = parser.parse_args()
 
