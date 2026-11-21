@@ -1,337 +1,621 @@
-import os
-import argparse
-import xarray as xr
-import numpy as np
-import json
-import gc
-from scipy.interpolate import LinearNDInterpolator
-import pandas as pd
-import time
 from pathlib import Path
-import sqlite3
+import time
+from typing import Dict, List, Optional, Tuple
+import argparse
+import gc
+import json
+import pickle
+import re
+
+import numpy as np
+import pandas as pd
+from scipy.interpolate import LinearNDInterpolator
 from scipy.spatial import Delaunay
+import xarray as xr
 
-def process_file_with_reused_grid(
-        file_path:String,
-        mt_indices:Range,
-        useDb:bool,
-        output_dir:String
-):
+DEFAULT_DOWNLOAD_DIR = "/Library/WebServer/Documents/data/download"
+DEFAULT_OUTPUT_DIR = "/Library/WebServer/Documents/data/rtofs"
+DEFAULT_SHARED_GRID_PATH = "/Library/WebServer/Documents/data/rtofs/shared_grid_prog.pkl"
 
-    # 전체 함수 시작 시간 측정
-    func_start_time = time.time()
+TARGET_LONS = np.arange(0, 360, 1.0)
+TARGET_LATS = np.arange(90, -91, -1.0)
+GRID_LON, GRID_LAT = np.meshgrid(TARGET_LONS, TARGET_LATS)
+NY, NX = GRID_LON.shape
 
-    if useDb == "Y":
-        conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
-        cursor = conn.cursor()
-        batch_data = []
-    else:
-        generated_files = []
+PROG_VARIABLE_SPECS: List[Dict] = [
+    {
+        "name": "sst",
+        "output_type": "temperature",
+        "parameterCategory": 2,
+        "parameterCategoryName": "Temperature",
+        "parameterNumber": 0,
+        "parameterNumberName": "Sea_surface_temperature",
+        "parameterUnit": "degC",
+        "surface1Type": 1,
+        "surface1TypeName": "Ground or water surface",
+        "surface1Value": 0,
+        "has_layer": True,
+    },
+    {
+        "name": "sss",
+        "output_type": "salinity",
+        "parameterCategory": 3,
+        "parameterCategoryName": "Mass",
+        "parameterNumber": 1,
+        "parameterNumberName": "Sea_surface_salinity",
+        "parameterUnit": "psu",
+        "surface1Type": 1,
+        "surface1TypeName": "Ground or water surface",
+        "surface1Value": 0,
+        "has_layer": True,
+    },
+    {
+        "name": "u_velocity",
+        "output_type": "currents",
+        "parameterCategory": 1,
+        "parameterCategoryName": "Currents",
+        "parameterNumber": 2,
+        "parameterNumberName": "U_component_of_current",
+        "parameterUnit": "m.s-1",
+        "surface1Type": 160,
+        "surface1TypeName": "Depth below sea level",
+        "surface1Value": 0,
+        "has_layer": True,
+    },
+    {
+        "name": "v_velocity",
+        "output_type": "currents",
+        "parameterCategory": 1,
+        "parameterCategoryName": "Currents",
+        "parameterNumber": 3,
+        "parameterNumberName": "V_component_of_current",
+        "parameterUnit": "m.s-1",
+        "surface1Type": 160,
+        "surface1TypeName": "Depth below sea level",
+        "surface1Value": 0,
+        "has_layer": True,
+    },
+]
 
-    """
-    하나의 파일에 대해 LinearNDInterpolator 구조를 최초 1회만 빌드하고,
-    지정된 MT 인덱스 배열을 순차적으로 값만 변경하여 메모리 세이프하게 처리하는 함수
-    """
-    base_name = os.path.splitext(os.path.basename(file_path))[0]
-    print(f"파일 처리 시작 (Dask 적용): [{base_name}]")
+
+def extract_forecast_hour(file_path: Path) -> Optional[int]:
+    match = re.search(r"_f(\d{3})_", file_path.name)
+    if not match:
+        return None
+    return int(match.group(1))
 
 
-    # Dask chunks를 적용하여 대용량 파일을 지연 로딩(Lazy Loading)으로 오픈
-    # MT 차원을 기준으로 청크를 나누어 메모리 효율 극대화
-    with xr.open_dataset(file_path, chunks={"MT": 1}) as ds:
-        # 1도 정규 격자 정보 정의 (모든 파일 전역 공통 격자)
-        target_lons = np.arange(0, 360, 1.0)
-        target_lats = np.arange(90, -91, -1.0)
-        grid_lon, grid_lat = np.meshgrid(target_lons, target_lats)
-        ny, nx = grid_lon.shape
+def collect_prog_files(download_dir: str) -> Dict[int, Path]:
+    """download_dir에서 prog.nc 파일만 수집하여 forecast_hour 오름차순으로 반환"""
+    download_path = Path(download_dir)
+    prog_by_hour: Dict[int, Path] = {}
 
-        mt_array = pd.to_datetime(ds['MT'].values)
+    for file_path in sorted(download_path.glob("rtofs_glo_*_f???_prog.nc")):
+        forecast_hour = extract_forecast_hour(file_path)
+        if forecast_hour is None:
+            continue
+        prog_by_hour[forecast_hour] = file_path
 
-        for mt_idx in mt_indices:
-            if mt_idx < 0 or mt_idx >= mt_array.size:
-                raise ValueError(f"인덱스 {mt_idx}는 범위를 벗어났습니다. (최대 인덱스: {mt_array.size - 1}) --mt_range 를 다시 설정해 주세요.")
+    return dict(sorted(prog_by_hour.items(), key=lambda item: item[0]))
 
-        # 격자 데이터 추출 및 평탄화 시간
-        lat_2d = ds['Latitude'].compute().values.flatten()
 
-        # [수정] 경도 값이 360도를 초과하는 경우 Modulo 연산으로 정규화 적용 후 values 추출
-        lon_2d = ds['Longitude'].compute()
-        lon_normalized = xr.where(
-            lon_2d >= 360, lon_2d % 360, lon_2d
+def get_first_prog_file(prog_by_hour: Dict[int, Path]) -> Tuple[int, Path]:
+    for forecast_hour, prog_file in prog_by_hour.items():
+        if prog_file.exists():
+            return forecast_hour, prog_file
+
+    raise FileNotFoundError("fxxx 순서의 첫 번째 prog.nc 파일을 찾을 수 없습니다.")
+
+
+def normalize_longitude(ds: xr.Dataset) -> np.ndarray:
+    lon = ds["Longitude"].compute()
+    lon = xr.where(lon >= 360, lon % 360, lon)
+    return lon.values.flatten()
+
+
+def get_variable_2d(
+        ds: xr.Dataset,
+        variable_name: str,
+        mt_idx: int,
+        has_layer: bool,
+) -> np.ndarray:
+    if variable_name not in ds:
+        raise KeyError(f"{variable_name} 변수가 파일에 없습니다.")
+
+    if has_layer and "Layer" in ds[variable_name].dims:
+        return ds[variable_name].isel(MT=mt_idx, Layer=0).compute().values.flatten()
+
+    return ds[variable_name].isel(MT=mt_idx).compute().values.flatten()
+
+
+def build_shared_triangulation(first_prog_file: Path, first_forecast_hour: int) -> Dict:
+    print(f"[공통 Delaunay 생성 기준 파일] {first_prog_file}")
+    t0 = time.time()
+
+    with xr.open_dataset(first_prog_file, chunks={"MT": 1}) as ds:
+        mt_array = pd.to_datetime(ds["MT"].compute().values)
+
+        if mt_array.size == 0:
+            raise ValueError(f"기준 prog 파일의 MT가 비어 있습니다: {first_prog_file}")
+
+        ref_datetime = pd.to_datetime(mt_array[0]) - pd.Timedelta(hours=first_forecast_hour)
+
+        lat_2d = ds["Latitude"].compute().values.flatten()
+        lon_2d = normalize_longitude(ds)
+
+        sample = get_variable_2d(
+            ds=ds,
+            variable_name="u_velocity",
+            mt_idx=0,
+            has_layer=True,
         )
-        lon_2d = lon_normalized.values.flatten()
 
-        # 고정된 삼각화 격자 구조(Points) 생성을 위해 첫 번째 유효 인덱스 샘플링
-        t0 = time.time()
-        first_valid_idx = 0
-        u_sample = ds['u_velocity'].isel(MT=first_valid_idx, Layer=0).compute().values.flatten()
-        valid_mask = ~np.isnan(u_sample) & ~np.isnan(lat_2d) & ~np.isnan(lon_2d)
+        valid_mask = ~np.isnan(sample) & ~np.isnan(lat_2d) & ~np.isnan(lon_2d)
         points = np.column_stack((lon_2d[valid_mask], lat_2d[valid_mask]))
-        print(f"총 {len(points)} 포인트 Delaunay 삼각분할 생성 중...")
-        tri = Delaunay(points)
-        print(f" Delaunay 삼각분할 생성 소요 시간: {time.time() - t0:.4f}초 (총 {len(points)} 포인트)")
-
-
-        print(f" 첫 번째 타임스텝의 마스크를 기준으로 고정 격자 포인트를 생성")
 
         if len(points) == 0:
-            print(f"[오류] {base_name} 파일에 유효한 해양 좌표 데이터가 없습니다.")
-            return
+            raise ValueError("공통 Delaunay 생성을 위한 유효 points가 없습니다.")
 
-        # LinearNDInterpolator 최초 뼈대(Delaunay Triangulation) 빌드 시간 (가장 CPU 소모가 큰 구간 중 하나)
-        # 임시 값으로 뼈대(Delaunay Triangulation)를 최초 1회만 빌드합니다.
+        print(f"[공통 Delaunay] points={len(points):,} 생성 중...")
+        tri = Delaunay(points)
 
-        t0 = time.time()
-        u_vals_sample = u_sample[valid_mask].astype(np.float64)
-        interp_u = LinearNDInterpolator(tri, u_vals_sample)
-        # V 컴포넌트도 동일한 좌표계를 사용하여 빌드
-        v_sample = ds['v_velocity'].isel(MT=first_valid_idx, Layer=0).compute().values.flatten()
-        v_vals_sample = v_sample[valid_mask].astype(np.float64)
-        interp_v = LinearNDInterpolator(tri, v_vals_sample)
-        print(f" 최초 삼각화 격자 기하 구조 빌드 소요 시간: {time.time() - t0:.4f}초 (총 {len(tri)} 포인트)")
+    elapsed = time.time() - t0
+    ref_time_str = ref_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    print(f"[공통 Delaunay 완료] 소요 시간: {elapsed:.2f}초")
+    print(f"[공통 refTime] {ref_time_str}")
 
-
-        refTime = pd.to_datetime(mt_array[0]).strftime('%Y-%m-%dT%H:%M:%S.000Z')
-
-        # 입력받은 MT 인덱스 배열 순회 (값만 주입하여 초고속 보간)
-        for mt_idx in mt_indices:
-            t0 = time.time()
-            forecastTime = pd.to_datetime(mt_array[mt_idx]).strftime('%Y-%m-%dT%H:%M:%S.000Z')
-            time_str = pd.to_datetime(mt_array[mt_idx]).strftime('%Y%m%d%H')
-
-            print(f"[{mt_idx + 1}/{mt_array.size}] MT 시간대 처리 중... ({forecastTime})")
+    return {
+        "tri": tri,
+        "valid_mask": valid_mask,
+        "points": points,
+        "total_cells": int(valid_mask.size),
+        "ref_datetime": ref_datetime,
+        "ref_time": ref_time_str,
+        "source_file": str(first_prog_file),
+        "source_forecast_hour": int(first_forecast_hour),
+    }
 
 
-            # [메모리 최적화] 대용량 배열 전체를 읽지 않고 해당 타임스텝 딱 '한 장'만 디스크에서 로드
-            u_raw = ds['u_velocity'].isel(MT=mt_idx, Layer=0).compute().values.flatten()
-            v_raw = ds['v_velocity'].isel(MT=mt_idx, Layer=0).compute().values.flatten()
+def save_shared_grid(shared_grid: Dict, shared_grid_path: str) -> Path:
+    """shared_grid를 파일로 저장"""
+    grid_file = Path(shared_grid_path)
+    grid_file.parent.mkdir(parents=True, exist_ok=True)
 
-            # float32 형식을 float64로 명시적 변환
-            u_vals = u_raw[valid_mask].astype(np.float64)
-            v_vals = v_raw[valid_mask].astype(np.float64)
+    with open(grid_file, "wb") as f:
+        pickle.dump(shared_grid, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-            # [첫 번째 방법의 핵심 최적화] 기하학 구조 재빌드 없이 값(.values)만 업데이트
-            interp_u.values = u_vals.reshape(-1, 1)
-            interp_v.values = v_vals.reshape(-1, 1)
-
-            # 실제 격자 보간 연산 수행 시간 (가장 강력한 CPU 병목 후보)
-            # 격자 보간 수행
-            u_grid = interp_u(grid_lon, grid_lat)
-            v_grid = interp_v(grid_lon, grid_lat)
-
-            # NumPy의 벡터화 연산을 이용해 전체 격자 데이터를 한 번에 소수점 2자리 반올림 후 1차원 평탄화
-            u_rounded = np.round(u_grid, 2).flatten()
-            v_rounded = np.round(v_grid, 2).flatten()
-            # 결측치(NaN) 위치를 불리언(Boolean) 마스크로 한 번에 일괄 계산
-            u_nan_mask = np.isnan(u_rounded)
-            v_nan_mask = np.isnan(v_rounded)
-            # 미리 계산된 마스크를 활용하여 빠르게 리스트 변환 (반복문 내 무거운 연산 제거)
-            u_flat = [None if isnan else float(val) for val, isnan in zip(u_rounded, u_nan_mask)]
-            v_flat = [None if isnan else float(val) for val, isnan in zip(v_rounded, v_nan_mask)]
-            print(f"    [벤치마크] 격자 보간 연산 수행 소요 시간: {time.time() - t0:.4f}초")
-
-            t0 = time.time()
-            # JSON 구조 정의
-            payload = [
-                {
-                    "header": {
-                        "discipline": 10,
-                        "disciplineName": "HYCOM archive file",
-                        "center": -3,
-                        "centerName": "National Centers for Environmental Prediction",
-                        "refTime": refTime,
-                        "parameterCategory": 1,
-                        "parameterCategoryName": "Currents",
-                        "parameterNumber": 2,
-                        "parameterNumberName": "U_component_of_current",
-                        "parameterUnit": "m.s-1",
-                        "forecastTime": int((mt_array[mt_idx] - mt_array[first_valid_idx]).total_seconds()/60/60),
-                        "surface1Type": 160,
-                        "surface1TypeName": "Depth below sea level",
-                        "surface1Value": 0,
-                        "numberPoints": len(u_flat),
-                        "nx": nx,
-                        "ny": ny,
-                        "lo1": float(target_lons[0]),
-                        "la1": float(target_lats[0]),
-                        "lo2": float(target_lons[-1]),
-                        "la2": float(target_lats[-1]),
-                        "dx": 1.0,
-                        "dy": 1.0
-                    },
-                    "data": u_flat
-                },
-                {
-                    "header": {
-                        "discipline": 10,
-                        "disciplineName": "HYCOM archive file",
-                        "center": -3,
-                        "centerName": "National Centers for Environmental Prediction",
-                        "refTime": refTime,
-                        "parameterCategory": 1,
-                        "parameterCategoryName": "Currents",
-                        "parameterNumber": 3,
-                        "parameterNumberName": "V_component_of_current",
-                        "parameterUnit": "m.s-1",
-                        "forecastTime": int((mt_array[mt_idx] - mt_array[first_valid_idx]).total_seconds()/60/60),
-                        "surface1Type": 160,
-                        "surface1TypeName": "Depth below sea level",
-                        "surface1Value": 0,
-                        "numberPoints": len(v_flat),
-                        "nx": nx,
-                        "ny": ny,
-                        "lo1": float(target_lons[0]),
-                        "la1": float(target_lats[0]),
-                        "lo2": float(target_lons[-1]),
-                        "la2": float(target_lats[-1]),
-                        "dx": 1.0,
-                        "dy": 1.0
-                    },
-                    "data": v_flat
-                }
-            ]
+    size_mb = grid_file.stat().st_size / 1024 / 1024
+    print(f"[shared_grid 저장 완료] {grid_file} ({size_mb:.2f} MB)")
+    return grid_file
 
 
+def load_shared_grid(shared_grid_path: str) -> Dict:
+    """저장된 shared_grid 파일을 로드"""
+    grid_file = Path(shared_grid_path)
+    if not grid_file.exists():
+        raise FileNotFoundError(f"shared_grid 파일을 찾을 수 없습니다: {grid_file}")
+
+    with open(grid_file, "rb") as f:
+        shared_grid = pickle.load(f)
+
+    required_keys = {"tri", "valid_mask", "points", "ref_time"}
+    missing = required_keys - set(shared_grid.keys())
+    if missing:
+        raise ValueError(f"shared_grid 필수 키가 누락되었습니다: {sorted(missing)}")
+
+    valid_mask = np.asarray(shared_grid["valid_mask"], dtype=bool)
+    points = np.asarray(shared_grid["points"])
+    tri: Delaunay = shared_grid["tri"]
+
+    if valid_mask.ndim != 1:
+        raise ValueError(f"valid_mask는 1차원 배열이어야 합니다. 현재 ndim={valid_mask.ndim}")
+    if int(valid_mask.sum()) != len(points) or len(points) != tri.npoints:
+        raise ValueError(
+            f"shared_grid 내부 정합성 오류: valid_mask.sum()={int(valid_mask.sum())}, "
+            f"len(points)={len(points)}, tri.npoints={tri.npoints}"
+        )
+
+    shared_grid["valid_mask"] = valid_mask
+    shared_grid["points"] = points
+
+    print(
+        f"[shared_grid 로드 완료] {grid_file} "
+        f"(points={len(points):,}, refTime={shared_grid.get('ref_time')})"
+    )
+    return shared_grid
 
 
-            if useDb == "Y":
-                batch_data.append( (time_str, "ocean", "currents", "surface", "level", json.dumps(payload) ) )
-            else:
-                try:
-                    output_filename =  f"{time_str}-surface-currents-oscar-1.0.json"
-                    output_filepath = os.path.join(output_dir, output_filename)
-                    with open(output_filepath, 'w', encoding='utf-8') as f:
-                        json.dump(payload, f)
+def get_or_create_shared_grid(
+        shared_grid_path: str,
+        first_prog_file: Path,
+        first_forecast_hour: int,
+        rebuild: bool = False,
+) -> Dict:
+    """저장된 shared_grid가 있으면 로드하고, 없거나 rebuild=True이면 생성 후 저장"""
+    grid_file = Path(shared_grid_path)
+    if grid_file.exists() and not rebuild:
+        return load_shared_grid(shared_grid_path)
 
-                    print(f"저장 완료! (용량: {os.path.getsize(output_filepath) / (1024*1024):.2f} MB)")
-                    print(f"    [벤치마크] JSON 파일 저장 소요 시간: {time.time() - t0:.4f}초 (용량: {os.path.getsize(output_filepath) / (1024*1024):.2f} MB)")
-                    # 생성된 파일명을 리스트에 추가 (상대 경로 또는 파일명만 필요시 선택)
-                    generated_files.append(output_filename)
-                except Exception as e:
-                    print(f"{time_str} 파일 처리 중 에러 발생: {e}")
+    shared_grid = build_shared_triangulation(first_prog_file, first_forecast_hour)
+    save_shared_grid(shared_grid, shared_grid_path)
+    return shared_grid
 
-            # 루프 사이클마다 사용이 끝난 루프 로컬 메모리 비우기 예비 조치
-            # del u_raw, v_raw, u_grid, v_grid, u_flat, v_flat, u_rounded, v_rounded, u_nan_mask, v_nan_mask
-            gc.collect()
 
-        if useDb == "Y":
-            try:
-                query_batch = '''INSERT INTO Earth_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(forecast_time, mode, type, surface, level ) DO UPDATE SET
-                    grib2json = excluded.grib2json'''
+def validate_dataset_grid_compatibility(
+        ds: xr.Dataset,
+        shared_grid: Dict,
+        file_path: Path,
+        check_coords: bool = False,
+        coord_atol: float = 1e-4,
+) -> None:
+    """현재 NetCDF 데이터셋이 shared_grid의 격자 크기, valid_mask, points와 호환되는지 검증"""
+    valid_mask: np.ndarray = shared_grid["valid_mask"]
+    points: np.ndarray = shared_grid["points"]
+    tri: Delaunay = shared_grid["tri"]
 
-                cursor.executemany(query_batch, batch_data)
-                conn.commit()
+    if "Latitude" not in ds or "Longitude" not in ds:
+        raise KeyError(f"좌표 변수(Latitude/Longitude)가 없습니다: {file_path.name}")
 
-                cursor.execute( "DELETE FROM Earth_Current_Tbl WHERE mode = 'ocean'" )
-                cursor.execute( "INSERT INTO Earth_Current_Tbl (forecast_time, mode, type, surface, level, grib2json ) VALUES (?, ?, ?, ?, ?, ?) ", batch_data[0] )
-                conn.commit()
+    lat_flat = ds["Latitude"].compute().values.flatten()
+    lon_flat = normalize_longitude(ds)
 
-                print(f">> 총 {len(query_batch)}개의 데이터가 일괄 삽입되었습니다.")
-            except Exception as e:
-                print(f"데이터 삽입 중 오류 발생: {e}")
-            finally:
-                print(f"파일 전체 처리 완료 소요 시간: {time.time() - func_start_time:.4f}초")
-                conn.close()
-        else:
-            print(f"파일 전체 처리 완료 소요 시간: {time.time() - func_start_time:.4f}초")
+    if lat_flat.size != valid_mask.size or lon_flat.size != valid_mask.size:
+        raise ValueError(
+            f"좌표 격자 크기 불일치 ({file_path.name}): "
+            f"lat={lat_flat.size}, lon={lon_flat.size}, valid_mask={valid_mask.size}"
+        )
+
+    masked_points = np.column_stack((lon_flat[valid_mask], lat_flat[valid_mask]))
+    if masked_points.shape != points.shape:
+        raise ValueError(
+            f"유효 포인트 배열 형태 불일치 ({file_path.name}): "
+            f"current={masked_points.shape}, shared={points.shape}"
+        )
+
+    if masked_points.shape[0] != tri.npoints:
+        raise ValueError(
+            f"유효 포인트 수와 Delaunay 정점 수 불일치 ({file_path.name}): "
+            f"current={masked_points.shape[0]}, tri.npoints={tri.npoints}"
+        )
+
+    if check_coords and not np.allclose(masked_points, points, atol=coord_atol, equal_nan=False):
+        raise ValueError(
+            f"유효 좌표(lon, lat) 값 불일치 ({file_path.name}, atol={coord_atol}). "
+            f"--rebuild_shared_grid 옵션으로 재생성 여부를 확인하세요."
+        )
+
+
+def validate_variable_compatibility(
+        raw_1d: np.ndarray,
+        shared_grid: Dict,
+        file_path: Path,
+        variable_name: str,
+) -> np.ndarray:
+    """추출된 1D 변수 배열과 shared_grid(valid_mask, tri)의 호환성을 검증하고 마스킹된 값 반환"""
+    valid_mask: np.ndarray = shared_grid["valid_mask"]
+    tri: Delaunay = shared_grid["tri"]
+
+    if raw_1d.ndim != 1:
+        raise ValueError(f"{variable_name} 배열은 1차원이어야 합니다. ndim={raw_1d.ndim}")
+
+    if raw_1d.size != valid_mask.size:
+        raise ValueError(
+            f"변수 격자 셀 수 불일치 ({file_path.name} / {variable_name}): "
+            f"raw={raw_1d.size}, valid_mask={valid_mask.size}"
+        )
+
+    values = raw_1d[valid_mask].astype(np.float64)
+    if values.size != tri.npoints:
+        raise ValueError(
+            f"마스킹 후 유효 값 수 불일치 ({file_path.name} / {variable_name}): "
+            f"values={values.size}, tri.npoints={tri.npoints}"
+        )
+
+    return values
+
+
+def to_json_data(grid: np.ndarray, round_digits: int = 2) -> List[Optional[float]]:
+    rounded = np.round(grid, round_digits).flatten()
+    nan_mask = np.isnan(rounded)
+    return [None if is_nan else float(value) for value, is_nan in zip(rounded, nan_mask)]
+
+
+def build_header(
+        spec: Dict,
+        ref_time: str,
+        forecast_time: int,
+        data_length: int,
+) -> Dict:
+    return {
+        "discipline": 10,
+        "disciplineName": "Oceanographic products",
+        "center": -3,
+        "centerName": "National Centers for Environmental Prediction",
+        "refTime": ref_time,
+        "forecastTime": forecast_time,
+        "parameterCategory": spec["parameterCategory"],
+        "parameterCategoryName": spec["parameterCategoryName"],
+        "parameterNumber": spec["parameterNumber"],
+        "parameterNumberName": spec["parameterNumberName"],
+        "parameterUnit": spec["parameterUnit"],
+        "surface1Type": spec["surface1Type"],
+        "surface1TypeName": spec["surface1TypeName"],
+        "surface1Value": spec["surface1Value"],
+        "numberPoints": data_length,
+        "nx": NX,
+        "ny": NY,
+        "lo1": float(TARGET_LONS[0]),
+        "la1": float(TARGET_LATS[0]),
+        "lo2": float(TARGET_LONS[-1]),
+        "la2": float(TARGET_LATS[-1]),
+        "dx": 1.0,
+        "dy": 1.0,
+    }
+
+
+def interpolate_variable(
+        ds: xr.Dataset,
+        spec: Dict,
+        mt_idx: int,
+        shared_grid: Dict,
+        file_path: Path,
+) -> List[Optional[float]]:
+    raw = get_variable_2d(
+        ds=ds,
+        variable_name=spec["name"],
+        mt_idx=mt_idx,
+        has_layer=spec["has_layer"],
+    )
+
+    values = validate_variable_compatibility(
+        raw_1d=raw,
+        shared_grid=shared_grid,
+        file_path=file_path,
+        variable_name=spec["name"],
+    )
+
+    interpolator = LinearNDInterpolator(shared_grid["tri"], values)
+    grid = interpolator(GRID_LON, GRID_LAT)
+
+    return to_json_data(grid)
+
+
+def save_payload(
+        output_dir: str,
+        time_str: str,
+        output_type: str,
+        payload: List[Dict],
+) -> str:
+    output_filename = f"{time_str}-surface-{output_type}-rtofs-1.0.json"
+    output_path = Path(output_dir) / output_filename
+
+    with open(output_path, "w", encoding="utf-8") as file:
+        json.dump(payload, file, ensure_ascii=False)
+
+    size_mb = output_path.stat().st_size / 1024 / 1024
+    print(f"[저장 완료] prog / {output_type}: {output_filename} ({size_mb:.2f} MB)")
+
+    return output_filename
+
+
+def process_prog_file(
+        file_path: Path,
+        shared_grid: Dict,
+        output_dir: str,
+        mt_range: Optional[Tuple[int, int]] = None,
+        check_coords: bool = False,
+) -> List[str]:
+    generated_files: List[str] = []
+
+    print(f"\n[prog 파일 처리 시작] file={file_path.name}")
+
+    with xr.open_dataset(file_path, chunks={"MT": 1}) as ds:
+        validate_dataset_grid_compatibility(
+            ds=ds,
+            shared_grid=shared_grid,
+            file_path=file_path,
+            check_coords=check_coords,
+        )
+
+        mt_array = pd.to_datetime(ds["MT"].compute().values)
+
+        if mt_array.size == 0:
+            print(f"[스킵] MT가 비어 있습니다: {file_path}")
             return generated_files
 
+        start_idx = 0
+        end_idx = mt_array.size - 1
+
+        if mt_range is not None:
+            start_idx = max(mt_range[0], 0)
+            end_idx = min(mt_range[1], mt_array.size - 1)
+
+        if start_idx > end_idx:
+            print(f"[스킵] 처리 가능한 MT 범위가 없습니다: {file_path}")
+            return generated_files
+
+        ref_time = shared_grid["ref_time"]
+
+        grouped_specs: Dict[str, List[Dict]] = {}
+        for spec in PROG_VARIABLE_SPECS:
+            if spec["name"] not in ds:
+                print(f"[변수 없음] {file_path.name}: {spec['name']} 스킵")
+                continue
+            grouped_specs.setdefault(spec["output_type"], []).append(spec)
+
+        for mt_idx in range(start_idx, end_idx + 1):
+            t0 = time.time()
+
+            forecast_dt = pd.to_datetime(mt_array[mt_idx])
+            time_str = forecast_dt.strftime("%Y%m%d%H")
+            forecast_time = int(file_path.name.split("_")[3][-3:])
+
+            print(
+                f"[MT 처리] {file_path.name} / MT={mt_idx}/{mt_array.size - 1} "
+                f"/ {time_str}, forecast_time={forecast_time}"
+            )
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Memory-efficient batch netCDF interpolation by reusing grid structure.")
-    # 복수의 파일 경로를 공백으로 구분하여 입력받음
-    parser.add_argument("--files", type=str, nargs="+", required=True, help="List of input .nc file paths separated by spaces")
-    # [변경됨] --mt_indices 대신 --mt_range를 사용하여 시작과 끝 범위를 정수로 2개 입력받음
-    parser.add_argument("--mt_range", type=int, nargs=2, required=True, help="Range of MT indices specified as start and end (e.g., --mt_range 0 24)")
-    parser.add_argument("--useDb", type=str, default="Y",  choices=["Y", "N"], help="Whether a database insert occurred(default: Y")
-    parser.add_argument("--output_dir", type=str, default=None, help="Directory to save the processed JSON files")
 
-    args = parser.parse_args()
+            for output_type, output_specs in grouped_specs.items():
+                payload: List[Dict] = []
 
-    # 입력받은 시작, 끝 범위를 이용해 실제 순회할 인덱스 리스트 생성 (끝 인덱스 포함)
-    start_idx, end_idx = args.mt_range
-    if start_idx > end_idx:
-        parser.error("오류: --mt_range의 시작 인덱스는 끝 인덱스보다 클 수 없습니다.")
+                for spec in output_specs:
+                    try:
+                        data = interpolate_variable(
+                            ds=ds,
+                            spec=spec,
+                            mt_idx=mt_idx,
+                            shared_grid=shared_grid,
+                            file_path=file_path,
+                        )
 
-    # range(start, end + 1)을 사용하여 지정한 끝 번호까지 포함하여 처리합니다.
-    # 만약 끝 번호 직전까지만 처리하려면 end + 1 대신 end를 사용하세요.
-    mt_indices = list(range(start_idx, end_idx + 1))
+                        payload.append(
+                            {
+                                "header": build_header(
+                                    spec=spec,
+                                    ref_time=ref_time,
+                                    forecast_time=forecast_time,
+                                    data_length=len(data),
+                                ),
+                                "data": data,
+                            }
+                        )
 
-    if args.useDb == "N":
-        os.makedirs(args.output_dir, exist_ok=True)
-        # 전체 실행 동안 생성된 모든 JSON 파일 이름을 수집할 총괄 리스트
-        all_generated_files = []
+                    except Exception as error:
+                        print(f"[변수 처리 오류] {file_path.name} / {spec['name']}: {error}")
 
-    print(f"격자 재사용 고속 처리 시작 (선택 파일 수: {len(args.files)}개, 대상 인덱스 범위: {start_idx} ~ {end_idx}, 총 {len(mt_indices)}개)")
+                    finally:
+                        gc.collect()
 
-    # 파일 레벨 순차 대형 루프 (메모리 덤핑 방지)
-    for file_path in args.files:
-        if not os.path.exists(file_path):
-            print(f"[오류] 파일 경로가 잘못되었거나 존재하지 않습니다: {file_path}")
-            continue
+                if payload:
+                    output_filename = save_payload(
+                        output_dir=output_dir,
+                        time_str=time_str,
+                        output_type=output_type,
+                        payload=payload,
+                    )
+                    generated_files.append(output_filename)
 
-        try:
-            file_generated = process_file_with_reused_grid(
-                file_path, mt_indices, args.useDb, args.output_dir )
-
-            if file_generated:
-                all_generated_files.extend(file_generated)
-
-        except Exception as e:
-            print(f"파일 처리 중 에러 발생: {e}")
-        finally:
-            # 파일 하나 처리가 완전히 끝날 때마다 인스턴스 소멸 및 무조건 가비지 컬렉션 호출
+            print(f"[MT 완료] 소요 시간: {time.time() - t0:.2f}초")
             gc.collect()
 
-
-    if args.useDb == "N":
-        all_generated_files = sorted(list(set(all_generated_files)))
-
-        if all_generated_files:
-            # catalog.json 파일로 overwrite 저장
-            catalog_path = os.path.join(args.output_dir, "catalog.json")
-
-            if Path(catalog_path).exists():
-                with open(catalog_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-            else:
-                data = {"files": [], "total_count": 0}
-
-            merge_list = merge_and_overwrite( data.get("files", []) , all_generated_files)
-
-            # 저장할 구조 정의 (필요에 따라 딕셔너리 형태로 감싸거나 리스트 형태로 바로 저장 가능합니다)
-            catalog_data = {
-                "files": merge_list,
-                "total_count": len(merge_list)
-            }
-            try:
-                with open(catalog_path, 'w', encoding='utf-8') as f:
-                    json.dump(catalog_data, f, ensure_ascii=False, indent=4)
-
-                print(f"[카탈로그 저장 완료] 총 {len(all_generated_files)}개의 파일 목록이 {catalog_path} 에 overwrite 되었습니다.")
-            except Exception as e:
-                print(f"카탈로그 파일 처리 중 에러 발생: {e}")
-            finally:
-                print("[작업 종료]")
-
-        else:
-            print("[작업 종료] 파일 생성이 실패하여 catalog.json 파일을 생성하지 않았습니다.")
+    print(f"[prog 파일 처리 완료] {file_path.name}")
+    return generated_files
 
 
-def merge_and_overwrite(target_list, new_list):
+def merge_and_overwrite(target_list: List[str], new_list: List[str]) -> List[str]:
     filtered_target = [item for item in target_list if item not in new_list]
     return filtered_target + new_list
 
 
+def update_catalog(output_dir: str, generated_files: List[str]) -> None:
+    if not generated_files:
+        print("[catalog] 생성된 파일이 없어 catalog.json을 갱신하지 않습니다.")
+        return
+
+    catalog_path = Path(output_dir) / "catalog.json"
+
+    if catalog_path.exists():
+        with open(catalog_path, "r", encoding="utf-8") as file:
+            catalog = json.load(file)
+    else:
+        catalog = {"files": [], "total_count": 0}
+
+    generated_files = sorted(list(set(generated_files)))
+    merged_files = merge_and_overwrite(catalog.get("files", []), generated_files)
+
+    catalog_data = {
+        "files": merged_files,
+        "total_count": len(merged_files),
+    }
+
+    with open(catalog_path, "w", encoding="utf-8") as file:
+        json.dump(catalog_data, file, ensure_ascii=False, indent=4)
+
+    print(f"[catalog 저장 완료] {catalog_path} / total_count={len(merged_files)}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Convert RTOFS prog.nc files to GRIB2 JSON using a reusable shared_grid file."
+    )
+    parser.add_argument(
+        "--download_dir",
+        type=str,
+        default=DEFAULT_DOWNLOAD_DIR,
+        help="RTOFS prog.nc download directory",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default=DEFAULT_OUTPUT_DIR,
+        help="Output directory for JSON files",
+    )
+    parser.add_argument(
+        "--shared_grid_path",
+        type=str,
+        default=DEFAULT_SHARED_GRID_PATH,
+        help="Path to save/load reusable shared_grid pickle file",
+    )
+    parser.add_argument(
+        "--rebuild_shared_grid",
+        action="store_true",
+        help="Force rebuild and overwrite shared_grid file even if it already exists",
+    )
+    parser.add_argument(
+        "--check_coords",
+        action="store_true",
+        help="Verify masked (lon, lat) coordinates against shared_grid points",
+    )
+    parser.add_argument(
+        "--mt_range",
+        type=int,
+        nargs=2,
+        default=None,
+        help="Optional MT index range: --mt_range 0 0",
+    )
+
+    args = parser.parse_args()
+
+    Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+
+    prog_by_hour = collect_prog_files(args.download_dir)
+    if not prog_by_hour:
+        raise FileNotFoundError(f"처리할 RTOFS prog.nc 파일이 없습니다: {args.download_dir}")
+
+    first_hour, first_prog_file = get_first_prog_file(prog_by_hour)
+    print(f"[첫 번째 prog.nc] f{first_hour:03d}: {first_prog_file.name}")
+
+    shared_grid = get_or_create_shared_grid(
+        shared_grid_path=args.shared_grid_path,
+        first_prog_file=first_prog_file,
+        first_forecast_hour=first_hour,
+        rebuild=args.rebuild_shared_grid,
+    )
+
+    all_generated_files: List[str] = []
+
+    for forecast_hour, prog_file in prog_by_hour.items():
+        print(f"\n========== f{forecast_hour:03d} (prog) 처리 시작 ==========")
+        try:
+            generated_files = process_prog_file(
+                file_path=prog_file,
+                shared_grid=shared_grid,
+                output_dir=args.output_dir,
+                mt_range=tuple(args.mt_range) if args.mt_range else None,
+                check_coords=args.check_coords,
+            )
+            all_generated_files.extend(generated_files)
+        except Exception as error:
+            print(f"[파일 처리 오류] {prog_file}: {error}")
+        finally:
+            gc.collect()
+        print(f"========== f{forecast_hour:03d} (prog) 처리 완료 ==========")
+
+    update_catalog(args.output_dir, all_generated_files)
+    print("[작업 종료]")
+
+
 if __name__ == "__main__":
     main()
-
-"""
-python RtofsInterpToGribJson.py \
---files ./test/file1.nc ./test/file2.nc ./test/file3.nc \
---mt_range 0 8 
---useDb Y
---output_dir ../oscar
-"""
