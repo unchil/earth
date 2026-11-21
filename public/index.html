@@ -69,6 +69,7 @@
                 <label for="mode-select">Mode</label><select id="mode-select">
                     <option id="wind-mode-enable" value="Air" selected>Air</option>
                     <option id="ocean-mode-enable" value="Ocean">Ocean</option>
+                    <option id="ice-mode-enable" value="Ice">Ice</option>
                 </select>
             </div>
             <div class="wind-mode">
@@ -107,6 +108,22 @@
                         <option value="SeaSurfaceTemperature">Sea Surface Temperature</option>
                         <option value="SeaSurfaceSalinity" >Sea Surface Salinity</option>
                     </select>
+                </div>
+            </div>
+            <div class="ice-mode">
+                <div class="menu-row ">
+                    <label for="animate-select">Animate</label><select id="animate-select">
+                    <option value="IceCurrents" selected>IceCurrents</option>
+                </select>
+                </div>
+                <div class="menu-row ">
+                    <label for="overlay-select-ice">Overlay</label><select id="overlay-select-ice">
+                    <option value="None" >None</option>
+                    <option value="IceCurrents" selected>IceCurrents</option>
+                    <option value="IceCoverage">IceCoverage</option>
+                    <option value="IceTemperature">IceTemperature</option>
+                    <option value="IceThickness">IceThickness</option>
+                </select>
                 </div>
             </div>
             <div class="divider"></div>

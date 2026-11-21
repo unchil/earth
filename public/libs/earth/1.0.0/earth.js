@@ -969,6 +969,7 @@
         configuration.on("change:param", function(context, mode) {
             d3.selectAll(".ocean-mode").classed("invisible", mode !== "ocean");
             d3.selectAll(".wind-mode").classed("invisible", mode !== "wind");
+            d3.selectAll(".ice-mode").classed("invisible", mode !== "ice");
             d3.select("#nav-backward-more").attr("title", "-1 Day");
             d3.select("#nav-backward").attr("title", "-3 Hours");
             d3.select("#nav-forward").attr("title", "+3 Hours");
@@ -1002,6 +1003,10 @@
                     }
                     stopCurrentAnimation(true);  // cleanup particle artifacts over continents
                 }
+            } else if (selectedValue === "Ice") {
+                if (configuration.get("param") !== "ice") {
+                    configuration.save({param: "ice", surface: "surface", level: "level", overlayType: "default"});
+                }
             }
         });
 
@@ -1009,7 +1014,7 @@
         configuration.on("change:param", function(x, param) {
             var selectNode = d3.select("#mode-select").node();
             if (selectNode) {
-                selectNode.value = param === "ocean" ? "Ocean" : "Air";
+                selectNode.value = param === "ocean" ? "Ocean" :  param === "wind" ? "Air" : "Ice";
             }
         });
 
@@ -1110,6 +1115,9 @@
                 case "Currents":
                     configuration.save({param: "ocean", surface: "surface", level: "currents"});
                     break;
+                case "IceCurrents":
+                    configuration.save({param: "ice", surface: "surface", level: "currents"});
+                    break;
             }
         });
 
@@ -1171,6 +1179,55 @@
             }
         });
 
+
+
+        d3.select("#overlay-select-ice").on("change", function() {
+            var value = this.value;
+            switch (value) {
+                case "None":
+                    configuration.save({overlayType: "off"});
+                    break;
+                case "IceCurrents":
+                    configuration.save({overlayType: "default"});
+                    break;
+                case "IceCoverage":
+                    configuration.save({overlayType: "ice_coverage"});
+                    break;
+                case "IceTemperature":
+                    configuration.save({overlayType: "ice_temperature"});
+                    break;
+                case "IceThickness":
+                    configuration.save({overlayType: "ice_thickness"});
+                    break;
+            }
+        });
+
+        configuration.on("change;overlayType", function(overlayType) {
+            var selectNode = d3.select("#overlay-select-ice").node();
+            if (!selectNode) return;
+
+            var value = "None";
+            if (overlayType === "off") {
+                value = "None";
+            } else if (overlayType === "default") {
+                value = "IceCurrents";
+            } else if (overlayType === "ice_coverage") {
+                value = "IceCoverage";
+            } else if (overlayType === "ice_temperature") {
+                value = "IceTemperature";
+            } else if (overlayType === "ice_thickness") {
+                value = "IceThickness";
+            } else {
+                value = overlayType;
+            }
+
+            for (var i = 0; i < selectNode.options.length; i++) {
+                if (selectNode.options[i].value === value) {
+                    selectNode.selectedIndex = i;
+                    break;
+                }
+            }
+        });
 
         // Projection select element event handler and configuration listener
         var projectionMap = {

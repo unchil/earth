@@ -538,7 +538,7 @@ def process_ice_file(
 
                 if payload:
                     if conn:
-                        record = (time_str, 'ocean', output_type, 'surface', 'level', json.dumps(payload))
+                        record = (time_str, 'ice', output_type, 'surface', 'level', json.dumps(payload))
                         batch_data.append(record)
                         if forecast_time == 0:
                             current_data.append(record)

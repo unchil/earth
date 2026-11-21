@@ -29,7 +29,7 @@ var products = function() {
 
 
     function earthDataServiceUrl(attr, type){
-        var mode =  attr.param === 'wind' ? 'air' : 'ocean';
+        var mode =  attr.param === 'wind' ? 'air' : attr.param === 'ocean' ? 'ocean' : 'ice';
         var stamp, level, url, surface;
 
         if( mode === 'air'){
@@ -651,6 +651,52 @@ var products = function() {
                             [100,     [88, 27, 67]]
                         ])
                     }
+                });
+            }
+        },
+
+        "ice_currents": {
+            matches: _.matches({param: "ice"}),
+            create: function(attr) {
+                return buildProduct({
+                    date: gfsDate(attr),
+                    field: "vector",
+                    type: "ice_currents",
+                    description: localize({
+                        name: {en: "Ice Currents"},
+                        qualifier: {en: " @ Surface"}
+                    }),
+                    paths: [ earthDataServiceUrl(attr, 'ice_currents') ],
+
+                    builder: function(file) {
+                        var uData = file[0].data, vData = file[1].data;
+                        return {
+                            header: file[0].header,
+                            interpolate: bilinearInterpolateVector,
+                            data: function(i) {
+                                var u = uData[i], v = vData[i];
+                                return µ.isValue(u) && µ.isValue(v) ? [u, v] : null;
+                            }
+                        }
+                    },
+                    units: [
+                        {label: "m/s",  conversion: function(x) { return x; },            precision: 2},
+                        {label: "km/h", conversion: function(x) { return x * 3.6; },      precision: 1},
+                        {label: "kn",   conversion: function(x) { return x * 1.943844; }, precision: 1},
+                        {label: "mph",  conversion: function(x) { return x * 2.236936; }, precision: 1}
+                    ],
+                    scale: {
+                        bounds: [0, 1.5],
+                        gradient: µ.segmentedColorScale([
+                            [0, [10, 25, 68]],
+                            [0.15, [10, 25, 250]],
+                            [0.4, [24, 255, 93]],
+                            [0.65, [255, 233, 102]],
+                            [1.0, [255, 233, 15]],
+                            [1.5, [255, 15, 15]]
+                        ])
+                    },
+                    particles: {velocityScale: 1/4400, maxIntensity: 0.7}
                 });
             }
         },
