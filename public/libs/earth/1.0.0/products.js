@@ -551,14 +551,14 @@ var products = function() {
                             {label: "mph",  conversion: function(x) { return x * 2.236936; }, precision: 1}
                         ],
                         scale: {
-                            bounds: [0, 1.5],
+                            bounds: [0, 2.5],
                             gradient: µ.segmentedColorScale([
                                 [0, [10, 25, 68]],
                                 [0.15, [10, 25, 250]],
                                 [0.4, [24, 255, 93]],
                                 [0.65, [255, 233, 102]],
                                 [1.0, [255, 233, 15]],
-                                [1.5, [255, 15, 15]]
+                                [2.5, [255, 15, 15]]
                             ])
                         },
                         particles: {velocityScale: 1/4400, maxIntensity: 0.7}
@@ -592,19 +592,19 @@ var products = function() {
                         {label: "°C", conversion: function(x) { return x ; },       precision: 1}
                     ],
                     scale: {
-                        bounds: [-10, 45],
+                        bounds: [-2.5, 35],
                         gradient: µ.segmentedColorScale([
-                            [-10,     [37, 4, 42]],
-                            [0,     [41, 10, 130]],
-                            [5,     [81, 40, 40]],
-                            [10,  [192, 37, 149]],  // -40 C/F
-                            [15, [70, 215, 215]],  // 0 F
-                            [20,  [21, 84, 187]],   // 0 C
-                            [25,  [24, 132, 14]],   // just above 0 C
-                            [30,     [247, 251, 59]],
-                            [35,     [235, 167, 21]],
-                            [40,     [230, 71, 39]],
-                            [45,     [88, 27, 67]]
+                            [-2.5,     [37, 4, 42]],
+                            [-2,     [41, 10, 130]],
+                            [-1.5,     [81, 40, 40]],
+                            [-1,  [192, 37, 149]],  // -40 C/F
+                            [0, [70, 215, 215]],  // 0 F
+                            [5,  [21, 84, 187]],   // 0 C
+                            [10,  [24, 132, 14]],   // just above 0 C
+                            [15,     [247, 251, 59]],
+                            [20,     [235, 167, 21]],
+                            [25,     [230, 71, 39]],
+                            [30,     [88, 27, 67]]
                         ])
                     }
                 });
@@ -636,19 +636,19 @@ var products = function() {
                         {label: "psu", conversion: function(x) { return x ; },    precision: 1},
                     ],
                     scale: {
-                        bounds: [0, 100],
+                        bounds: [0, 45],
                         gradient: µ.segmentedColorScale([
                             [0,     [37, 4, 42]],
-                            [10,     [41, 10, 130]],
-                            [20,     [81, 40, 40]],
-                            [30,  [192, 37, 149]],
-                            [40, [70, 215, 215]],
-                            [50,  [21, 84, 187]],
-                            [60,  [24, 132, 14]],
-                            [70,     [247, 251, 59]],
-                            [80,     [235, 167, 21]],
-                            [90,     [230, 71, 39]],
-                            [100,     [88, 27, 67]]
+                            [4,     [41, 10, 130]],
+                            [8,     [81, 40, 40]],
+                            [12,  [192, 37, 149]],
+                            [16, [70, 215, 215]],
+                            [20,  [21, 84, 187]],
+                            [24,  [24, 132, 14]],
+                            [28,     [247, 251, 59]],
+                            [32,     [235, 167, 21]],
+                            [36,     [230, 71, 39]],
+                            [40,     [88, 27, 67]]
                         ])
                     }
                 });
@@ -697,6 +697,138 @@ var products = function() {
                         ])
                     },
                     particles: {velocityScale: 1/4400, maxIntensity: 0.7}
+                });
+            }
+        },
+        "ice_temperature": {
+            matches: _.matches({param: "ice", overlayType: "ice_temperature"}),
+            create: function(attr) {
+                return buildProduct({
+                    field: "scalar",
+                    type: "ice_temperature",
+                    description: localize({
+                        name: {en: "Temp"},
+                        qualifier: {en: " @ " + describeSurface(attr)}
+                    }),
+                    paths: [ earthDataServiceUrl(attr, attr.overlayType)],
+                    date: gfsDate(attr),
+                    builder: function(file) {
+                        var record = file[0], data = record.data;
+                        return {
+                            header: record.header,
+                            interpolate: bilinearInterpolateScalar,
+                            data: function(i) {
+                                return data[i];
+                            }
+                        }
+                    },
+                    units: [
+                        {label: "°C", conversion: function(x) { return x ; },       precision: 1}
+                    ],
+                    scale: {
+                        bounds: [-50, 0],
+                        gradient: µ.segmentedColorScale([
+                            [-40,     [37, 4, 42]],
+                            [-30,     [41, 10, 130]],
+                            [-24,     [81, 40, 40]],
+                            [-21,  [192, 37, 149]],  // -40 C/F
+                            [-18, [70, 215, 215]],  // 0 F
+                            [-15,  [21, 84, 187]],   // 0 C
+                            [-12,  [24, 132, 14]],   // just above 0 C
+                            [-9,     [247, 251, 59]],
+                            [-6,     [235, 167, 21]],
+                            [-3,     [230, 71, 39]],
+                            [0,     [88, 27, 67]]
+                        ])
+                    }
+                });
+            }
+        },
+        "ice_coverage": {
+            matches: _.matches({param: "ice", overlayType: "ice_coverage"}),
+            create: function(attr) {
+                return buildProduct({
+                    field: "scalar",
+                    type: "ice_coverage",
+                    description: localize({
+                        name: {en: ""},
+                        qualifier: {en: " @ " + describeSurface(attr)}
+                    }),
+                    paths: [ earthDataServiceUrl(attr, attr.overlayType)],
+                    date: gfsDate(attr),
+                    builder: function(file) {
+                        var record = file[0], data = record.data;
+                        return {
+                            header: record.header,
+                            interpolate: bilinearInterpolateScalar,
+                            data: function(i) {
+                                return data[i];
+                            }
+                        }
+                    },
+                    units: [
+                        {label: "", conversion: function(x) { return x ; },       precision: 1}
+                    ],
+                    scale: {
+                        bounds: [0, 1],
+                        gradient: µ.segmentedColorScale([
+                            [0,     [37, 4, 42]],
+                            [0.1,     [41, 10, 130]],
+                            [0.2,     [81, 40, 40]],
+                            [0.3,  [192, 37, 149]],  // -40 C/F
+                            [0.4, [70, 215, 215]],  // 0 F
+                            [0.5,  [21, 84, 187]],   // 0 C
+                            [0.6,  [24, 132, 14]],   // just above 0 C
+                            [0.7,     [247, 251, 59]],
+                            [0.8,     [235, 167, 21]],
+                            [0.9,     [230, 71, 39]],
+                            [1,     [88, 27, 67]]
+                        ])
+                    }
+                });
+            }
+        },
+        "ice_thickness": {
+            matches: _.matches({param: "ice", overlayType: "ice_thickness"}),
+            create: function(attr) {
+                return buildProduct({
+                    field: "scalar",
+                    type: "ice_thickness",
+                    description: localize({
+                        name: {en: "m"},
+                        qualifier: {en: " @ " + describeSurface(attr)}
+                    }),
+                    paths: [ earthDataServiceUrl(attr, attr.overlayType)],
+                    date: gfsDate(attr),
+                    builder: function(file) {
+                        var record = file[0], data = record.data;
+                        return {
+                            header: record.header,
+                            interpolate: bilinearInterpolateScalar,
+                            data: function(i) {
+                                return data[i];
+                            }
+                        }
+                    },
+                    units: [
+                        {label: "m", conversion: function(x) { return x ; },       precision: 1}
+                    ],
+                    scale: {
+                        bounds: [0, 10],
+                        gradient: µ.segmentedColorScale([
+                            [0.1,     [37, 4, 42]],
+                            [0.2,     [41, 10, 130]],
+                            [0.4,     [81, 40, 40]],
+                            [0.6,  [192, 37, 149]],
+                            [0.8, [70, 215, 215]],
+                            [1.0,  [21, 84, 187]],
+                            [1.5,  [24, 132, 14]],
+                            [2.0,     [247, 251, 59]],
+                            [2.5,     [235, 167, 21]],
+                            [3,     [230, 71, 39]],
+                            [3.5,     [88, 27, 67]]
+                        ])
+                    }
                 });
             }
         },
