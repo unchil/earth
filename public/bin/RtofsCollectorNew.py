@@ -11,6 +11,8 @@ import urllib.request
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_DOWNLOAD_DIR = os.path.normpath(os.path.join(BASE_DIR, "..", "data", "download"))
+DEFAULT_FILE_TYPES = ["prog"]
+ALLOWED_FILE_TYPES = ["diag", "ice", "prog"]
 
 
 def create_unverified_ssl_context():
@@ -91,28 +93,51 @@ def extract_if_gzipped(download_path, download_dir):
         return None
 
 
-def build_target_filenames(start_hour=6, step_hours=3, duration_hours=36):
+def normalize_file_types(file_types):
+    """선택된 파일 타입 시퀀스를 검증하고 중복을 제거한 튜플로 반환"""
+    if not file_types:
+        raise ValueError("최소 하나 이상의 file_types를 지정해야 합니다.")
+
+    normalized = []
+    for ftype in file_types:
+        if ftype not in ALLOWED_FILE_TYPES:
+            raise ValueError(
+                f"지원하지 않는 file_type입니다: {ftype} (허용값: {ALLOWED_FILE_TYPES})"
+            )
+        if ftype not in normalized:
+            normalized.append(ftype)
+
+    return tuple(normalized)
+
+
+def build_target_filenames(
+        start_hour=0,
+        step_hours=3,
+        duration_hours=36,
+        file_types=DEFAULT_FILE_TYPES,
+):
     """
-    start_hour(f006)부터 duration_hours(36시간) 뒤인 f042까지
-    step_hours(3시간) 간격으로 diag, ice, prog 파일명 목록 생성
+    start_hour부터 duration_hours 뒤까지 step_hours 간격으로
+    선택된 file_types 파일명 목록 생성
     """
+    selected_types = normalize_file_types(file_types)
     end_hour = start_hour + duration_hours
-    file_types = ( "ice", "prog")
     targets = []
 
     for hour in range(start_hour, end_hour + 1, step_hours):
         prefix = f"rtofs_glo_2ds_f{hour:03d}"
-        for ftype in file_types:
+        for ftype in selected_types:
             targets.append(f"{prefix}_{ftype}.nc")
 
     return targets
 
 
 def download_rtofs_2ds_range(
-        start_hour=6,
+        start_hour=0,
         step_hours=3,
         duration_hours=36,
         download_dir=DEFAULT_DOWNLOAD_DIR,
+        file_types=DEFAULT_FILE_TYPES,
 ):
     if start_hour < 0:
         raise ValueError("start_hour는 0 이상이어야 합니다.")
@@ -120,6 +145,8 @@ def download_rtofs_2ds_range(
         raise ValueError("step_hours는 1 이상이어야 합니다.")
     if duration_hours < 0:
         raise ValueError("duration_hours는 0 이상이어야 합니다.")
+
+    selected_types = normalize_file_types(file_types)
 
     base_url = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/rtofs/prod/"
     print(f"Connecting to base URL: {base_url}")
@@ -154,11 +181,12 @@ def download_rtofs_2ds_range(
         start_hour=start_hour,
         step_hours=step_hours,
         duration_hours=duration_hours,
+        file_types=selected_types,
     )
     step_count = ((start_hour + duration_hours - start_hour) // step_hours) + 1
     print(
         f"수집 대상 시각: f{start_hour:03d} ~ f{start_hour + duration_hours:03d} "
-        f"({step_hours}시간 간격, 파일 유형당 {step_count}개 / 총 {len(target_filenames)}개 파일)"
+        f"({step_hours}시간 간격, 파일 유형={selected_types}, 유형당 {step_count}개 / 총 {len(target_filenames)}개 파일)"
     )
 
     matched_files = []
@@ -196,7 +224,6 @@ def download_rtofs_2ds_range(
             )
             continue
 
-
     if not matched_files:
         print("\n[오류] 탐색 가능한 모든 날짜 폴더에서 전체 대상 파일을 찾지 못했습니다.")
         return
@@ -227,8 +254,8 @@ def parse_args():
     parser.add_argument(
         "--start-hour",
         type=int,
-        default=6,
-        help="시작 예보 시각(시간 단위, 기본값: 6 -> f006)",
+        default=0,
+        help="시작 예보 시각(시간 단위, 기본값: 0 -> f000)",
     )
     parser.add_argument(
         "--step-hours",
@@ -240,13 +267,20 @@ def parse_args():
         "--duration-hours",
         type=int,
         default=36,
-        help="시작 시각으로부터 수집할 총 시간 범위(시간 단위, 기본값: 36 -> f042까지)",
+        help="시작 시각으로부터 수집할 총 시간 범위(시간 단위, 기본값: 36 -> f036까지)",
     )
     parser.add_argument(
         "--download-dir",
         type=str,
         default=DEFAULT_DOWNLOAD_DIR,
         help=f"파일 저장 경로(기본값: {DEFAULT_DOWNLOAD_DIR})",
+    )
+    parser.add_argument(
+        "--file-types",
+        nargs="+",
+        choices=ALLOWED_FILE_TYPES,
+        default=list(DEFAULT_FILE_TYPES),
+        help=f"다운로드할 파일 유형 목록(기본값: {' '.join(DEFAULT_FILE_TYPES)})",
     )
     return parser.parse_args()
 
@@ -258,4 +292,5 @@ if __name__ == "__main__":
         step_hours=args.step_hours,
         duration_hours=args.duration_hours,
         download_dir=args.download_dir,
+        file_types=args.file_types,
     )

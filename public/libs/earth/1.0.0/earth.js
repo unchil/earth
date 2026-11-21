@@ -670,13 +670,27 @@
         }
     }
 
+
     function validityDate(grids) {
-        // When the active layer is considered "current", use its time as now, otherwise use current time as
-        // now (but rounded down to the nearest three-hour block).
         var THREE_HOURS = 3 * HOUR;
-        var now = grids ? grids.primaryGrid.date.getTime() : Math.floor(Date.now() / THREE_HOURS) * THREE_HOURS;
-        var parts = configuration.get("date").split("/");  // yyyy/mm/dd or "current"
+        var configDate = configuration.get("date");
+        var parts = configDate.split("/");
         var hhmm = configuration.get("hour");
+
+        if (grids && grids.primaryGrid) {
+            var primaryGrid = grids.primaryGrid;
+
+            if (configDate === "current" && primaryGrid.refTime) {
+                return primaryGrid.refTime.getTime();
+            }
+
+            if (primaryGrid.date) {
+                return primaryGrid.date.getTime();
+            }
+        }
+
+        var now = Math.floor(Date.now() / THREE_HOURS) * THREE_HOURS;
+
         return parts.length > 1 ?
             Date.UTC(+parts[0], parts[1] - 1, +parts[2], +hhmm.substring(0, 2)) :
             parts[0] === "current" ? now : null;
@@ -688,6 +702,8 @@
         d3.select("#data-date").text(formatted + " " + (isLocal ? "Local" : "UTC"));
         d3.select("#toggle-zone").text("⇄ " + (isLocal ? "UTC" : "Local"));
     }
+
+
 
 
     function showGridDetails(grids) {
@@ -1059,9 +1075,6 @@
                 case "RelativeHumidity":
                     configuration.save({overlayType: "relative_humidity"});
                     break;
-                case "IceConcentration":
-                    configuration.save( { overlayType: "ice_concentration"});
-                    break;
             }
         });
 
@@ -1072,12 +1085,10 @@
             var value = "None";
             if (overlayType === "default") {
                 value = "WindSpeed";
-            } else if (overlayType === "temperature") {
-                value = "Temperature";
+            } else if (overlayType === "ocean_temperature") {
+                value = "OceanTemperature";
             } else if (overlayType === "relative_humidity") {
                 value = "RelativeHumidity";
-            } else if (overlayType === "ice_concentration") {
-                value = "IceConcentration";
             } else if (overlayType === "off") {
                 value = "None";
             } else {
@@ -1126,7 +1137,12 @@
                 case "Currents":
                     configuration.save({overlayType: "default"});
                     break;
-
+                case "OceanTemperature":
+                    configuration.save({overlayType: "ocean_temperature"});
+                    break;
+                case "Salinity":
+                    configuration.save({overlayType: "salinity"});
+                    break;
             }
         });
 
@@ -1139,6 +1155,10 @@
                 value = "None";
             } else if (overlayType === "default") {
                 value = "Currents";
+            } else if (overlayType === "ocean_temperature") {
+                value = "OceanTemperature";
+            } else if (overlayType === "salinity") {
+                value = "Salinity";
             } else {
                 value = overlayType;
             }

@@ -231,7 +231,7 @@ var products = function() {
                 });
             }
         },
-
+/*
         "ice_concentration": {
             matches: _.matches({param: "wind", overlayType: "ice_concentration"}),
             create: function(attr) {
@@ -266,7 +266,7 @@ var products = function() {
                 });
             }
         },
-
+*/
         /*
 
         "direction_of_wind_wave": {
@@ -566,6 +566,95 @@ var products = function() {
             }
         },
 
+        "ocean_temperature": {
+            matches: _.matches({param: "ocean", overlayType: "ocean_temperature"}),
+            create: function(attr) {
+                return buildProduct({
+                    field: "scalar",
+                    type: "ocean_temperature",
+                    description: localize({
+                        name: {en: "Temp"},
+                        qualifier: {en: " @ " + describeSurface(attr)}
+                    }),
+                    paths: [ earthDataServiceUrl(attr, attr.overlayType)],
+                    date: gfsDate(attr),
+                    builder: function(file) {
+                        var record = file[0], data = record.data;
+                        return {
+                            header: record.header,
+                            interpolate: bilinearInterpolateScalar,
+                            data: function(i) {
+                                return data[i];
+                            }
+                        }
+                    },
+                    units: [
+                        {label: "°C", conversion: function(x) { return x ; },       precision: 1}
+                    ],
+                    scale: {
+                        bounds: [-10, 45],
+                        gradient: µ.segmentedColorScale([
+                            [-10,     [37, 4, 42]],
+                            [0,     [41, 10, 130]],
+                            [5,     [81, 40, 40]],
+                            [10,  [192, 37, 149]],  // -40 C/F
+                            [15, [70, 215, 215]],  // 0 F
+                            [20,  [21, 84, 187]],   // 0 C
+                            [25,  [24, 132, 14]],   // just above 0 C
+                            [30,     [247, 251, 59]],
+                            [35,     [235, 167, 21]],
+                            [40,     [230, 71, 39]],
+                            [45,     [88, 27, 67]]
+                        ])
+                    }
+                });
+            }
+        },
+        "salinity": {
+            matches: _.matches({param: "ocean", overlayType: "salinity"}),
+            create: function(attr) {
+                return buildProduct({
+                    field: "scalar",
+                    type: "salinity",
+                    description: localize({
+                        name: {en: "Salinity"},
+                        qualifier: {en: " @ " + describeSurface(attr)}
+                    }),
+                    paths: [ earthDataServiceUrl(attr, attr.overlayType)],
+                    date: gfsDate(attr),
+                    builder: function(file) {
+                        var record = file[0], data = record.data;
+                        return {
+                            header: record.header,
+                            interpolate: bilinearInterpolateScalar,
+                            data: function(i) {
+                                return data[i];
+                            }
+                        }
+                    },
+                    units: [
+                        {label: "psu", conversion: function(x) { return x ; },    precision: 1},
+                    ],
+                    scale: {
+                        bounds: [0, 100],
+                        gradient: µ.segmentedColorScale([
+                            [0,     [37, 4, 42]],
+                            [10,     [41, 10, 130]],
+                            [20,     [81, 40, 40]],
+                            [30,  [192, 37, 149]],
+                            [40, [70, 215, 215]],
+                            [50,  [21, 84, 187]],
+                            [60,  [24, 132, 14]],
+                            [70,     [247, 251, 59]],
+                            [80,     [235, 167, 21]],
+                            [90,     [230, 71, 39]],
+                            [100,     [88, 27, 67]]
+                        ])
+                    }
+                });
+            }
+        },
+
         "off": {
             matches: _.matches({overlayType: "off"}),
             create: function() {
@@ -638,8 +727,17 @@ var products = function() {
         var λ0 = header.lo1, φ0 = header.la1;  // the grid's origin (e.g., 0.0E, 90.0N)
         var Δλ = header.dx, Δφ = header.dy;    // distance between grid points (e.g., 2.5 deg lon, 2.5 deg lat)
         var ni = header.nx, nj = header.ny;    // number of grid points W-E and N-S (e.g., 144 x 73)
+
+       /*
         var date = new Date(header.refTime);
         date.setHours(date.getHours() + header.forecastTime);
+        */
+
+        var refTime = new Date(header.refTime);
+        var forecastTime = +(header.forecastTime || 0);
+        var date = new Date(refTime.getTime());
+        date.setHours(date.getHours() + forecastTime);
+
 
         // Scan mode 0 assumed. Longitude increases from λ0, and latitude decreases from φ0.
         // http://www.nco.ncep.noaa.gov/pmb/docs/grib2/grib2_table3-4.shtml
@@ -692,6 +790,8 @@ var products = function() {
 
         return {
             source: dataSource(header),
+            refTime: refTime,
+            forecastTime: forecastTime,
             date: date,
             interpolate: interpolate,
             forEachPoint: function(cb) {
