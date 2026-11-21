@@ -566,12 +566,12 @@ var products = function() {
             }
         },
 
-        "ocean_temperature": {
-            matches: _.matches({param: "ocean", overlayType: "ocean_temperature"}),
+        "ss_temperature": {
+            matches: _.matches({param: "ocean", overlayType: "ss_temperature"}),
             create: function(attr) {
                 return buildProduct({
                     field: "scalar",
-                    type: "ocean_temperature",
+                    type: "ss_temperature",
                     description: localize({
                         name: {en: "Temp"},
                         qualifier: {en: " @ " + describeSurface(attr)}

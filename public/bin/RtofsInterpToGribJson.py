@@ -6,7 +6,7 @@ import gc
 import json
 import pickle
 import re
-
+import sqlite3
 import numpy as np
 import pandas as pd
 from scipy.interpolate import LinearNDInterpolator
@@ -22,10 +22,13 @@ TARGET_LATS = np.arange(90, -91, -1.0)
 GRID_LON, GRID_LAT = np.meshgrid(TARGET_LONS, TARGET_LATS)
 NY, NX = GRID_LON.shape
 
+batch_data = []
+current_data = []
+
 PROG_VARIABLE_SPECS: List[Dict] = [
     {
         "name": "sst",
-        "output_type": "temperature",
+        "output_type": "ss_temperature",
         "parameterCategory": 2,
         "parameterCategoryName": "Temperature",
         "parameterNumber": 0,
@@ -398,12 +401,39 @@ def save_payload(
     return output_filename
 
 
+
+def insert_payload(conn):
+    try:
+        query_batch = """INSERT INTO Earth_Tbl (forecast_time, mode, type, surface, level, grib2json)
+                         VALUES (?, ?, ?, ?, ?, ?)
+                             ON CONFLICT(forecast_time, mode, type, surface, level) DO UPDATE SET
+            grib2json = excluded.grib2json"""
+        conn.cursor().executemany(query_batch, batch_data)
+        conn.commit()
+
+        query_current = """INSERT INTO Earth_Current_Tbl (forecast_time, mode, type, surface, level, grib2json)
+                           VALUES (?, ?, ?, ?, ?, ?)
+                               ON CONFLICT(forecast_time, mode, type, surface, level) DO UPDATE SET
+            grib2json = excluded.grib2json"""
+        conn.cursor().executemany(query_current, current_data)
+        conn.commit()
+        print(f"batch_data[{len(batch_data)}],current_data[{len(current_data)}]: 데이터가 Insert 되었습니다.")
+
+        conn.close()
+    except Exception as e:
+        print(f"데이터 Insert 중 오류 발생: {e}")
+
+
+
+
+
 def process_prog_file(
         file_path: Path,
         shared_grid: Dict,
         output_dir: str,
         mt_range: Optional[Tuple[int, int]] = None,
         check_coords: bool = False,
+        conn=None
 ) -> List[str]:
     generated_files: List[str] = []
 
@@ -489,13 +519,19 @@ def process_prog_file(
                         gc.collect()
 
                 if payload:
-                    output_filename = save_payload(
-                        output_dir=output_dir,
-                        time_str=time_str,
-                        output_type=output_type,
-                        payload=payload,
-                    )
-                    generated_files.append(output_filename)
+                    if conn:
+                        record = (time_str, 'ocean', output_type, 'surface', 'level', json.dumps(payload))
+                        batch_data.append(record)
+                        if forecast_time == 0:
+                            current_data.append(record)
+                    else:
+                        output_filename = save_payload(
+                            output_dir=output_dir,
+                            time_str=time_str,
+                            output_type=output_type,
+                            payload=payload,
+                        )
+                        generated_files.append(output_filename)
 
             print(f"[MT 완료] 소요 시간: {time.time() - t0:.2f}초")
             gc.collect()
@@ -576,7 +612,20 @@ def main():
         help="Optional MT index range: --mt_range 0 0",
     )
 
+    parser.add_argument(
+        "--useDb",
+        type=str,
+        default="Y",
+        choices=["Y", "N"],
+        help="Whether a database insert occurred (default: Y)"
+    )
+
     args = parser.parse_args()
+    conn = None
+    if args.useDb == "Y":
+        conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
+        conn.cursor().execute("DELETE FROM Earth_Current_Tbl WHERE mode = 'ocean'")
+        conn.commit()
 
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -605,6 +654,7 @@ def main():
                 output_dir=args.output_dir,
                 mt_range=tuple(args.mt_range) if args.mt_range else None,
                 check_coords=args.check_coords,
+                conn=conn
             )
             all_generated_files.extend(generated_files)
         except Exception as error:
@@ -613,7 +663,11 @@ def main():
             gc.collect()
         print(f"========== f{forecast_hour:03d} (prog) 처리 완료 ==========")
 
-    update_catalog(args.output_dir, all_generated_files)
+    if conn:
+        insert_payload(conn)
+    else:
+        update_catalog(args.output_dir, all_generated_files)
+
     print("[작업 종료]")
 
 

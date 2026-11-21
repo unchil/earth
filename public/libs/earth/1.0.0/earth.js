@@ -1137,8 +1137,8 @@
                 case "Currents":
                     configuration.save({overlayType: "default"});
                     break;
-                case "OceanTemperature":
-                    configuration.save({overlayType: "ocean_temperature"});
+                case "SeaSurfaceTemperature":
+                    configuration.save({overlayType: "ss_temperature"});
                     break;
                 case "Salinity":
                     configuration.save({overlayType: "salinity"});
@@ -1155,8 +1155,8 @@
                 value = "None";
             } else if (overlayType === "default") {
                 value = "Currents";
-            } else if (overlayType === "ocean_temperature") {
-                value = "OceanTemperature";
+            } else if (overlayType === "ss_temperature") {
+                value = "SeaSurfaceTemperature";
             } else if (overlayType === "salinity") {
                 value = "Salinity";
             } else {
