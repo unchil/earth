@@ -28,7 +28,7 @@ current_data = []
 PROG_VARIABLE_SPECS: List[Dict] = [
     {
         "name": "sst",
-        "output_type": "ss_temperature",
+        "output_type": "prog_temperature",
         "parameterCategory": 2,
         "parameterCategoryName": "Temperature",
         "parameterNumber": 0,
@@ -41,7 +41,7 @@ PROG_VARIABLE_SPECS: List[Dict] = [
     },
     {
         "name": "sss",
-        "output_type": "salinity",
+        "output_type": "prog_salinity",
         "parameterCategory": 3,
         "parameterCategoryName": "Mass",
         "parameterNumber": 1,
@@ -54,7 +54,7 @@ PROG_VARIABLE_SPECS: List[Dict] = [
     },
     {
         "name": "u_velocity",
-        "output_type": "currents",
+        "output_type": "prog_currents",
         "parameterCategory": 1,
         "parameterCategoryName": "Currents",
         "parameterNumber": 2,
@@ -67,7 +67,7 @@ PROG_VARIABLE_SPECS: List[Dict] = [
     },
     {
         "name": "v_velocity",
-        "output_type": "currents",
+        "output_type": "prog_currents",
         "parameterCategory": 1,
         "parameterCategoryName": "Currents",
         "parameterNumber": 3,
@@ -624,7 +624,7 @@ def main():
     conn = None
     if args.useDb == "Y":
         conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
-        conn.cursor().execute("DELETE FROM Earth_Current_Tbl WHERE mode = 'ocean'")
+        conn.cursor().execute("DELETE FROM Earth_Current_Tbl WHERE mode = 'ocean' AND type LIKE 'prog%' ")
         conn.commit()
 
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
