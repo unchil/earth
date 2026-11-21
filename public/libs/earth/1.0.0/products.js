@@ -520,18 +520,18 @@ var products = function() {
          */
 
 
-        "currents": {
+        "prog_currents": {
             matches: _.matches({param: "ocean"}),
             create: function(attr) {
                     return buildProduct({
                         date: gfsDate(attr),
                         field: "vector",
-                        type: "currents",
+                        type: "prog_currents",
                         description: localize({
                             name: {en: "Ocean Currents"},
                             qualifier: {en: " @ Surface"}
                         }),
-                        paths: [ earthDataServiceUrl(attr, 'currents') ],
+                        paths: [ earthDataServiceUrl(attr, 'prog_currents') ],
 
                         builder: function(file) {
                             var uData = file[0].data, vData = file[1].data;
@@ -566,12 +566,12 @@ var products = function() {
             }
         },
 
-        "ss_temperature": {
-            matches: _.matches({param: "ocean", overlayType: "ss_temperature"}),
+        "prog_temperature": {
+            matches: _.matches({param: "ocean", overlayType: "prog_temperature"}),
             create: function(attr) {
                 return buildProduct({
                     field: "scalar",
-                    type: "ss_temperature",
+                    type: "prog_temperature",
                     description: localize({
                         name: {en: "Temp"},
                         qualifier: {en: " @ " + describeSurface(attr)}
@@ -610,12 +610,12 @@ var products = function() {
                 });
             }
         },
-        "salinity": {
-            matches: _.matches({param: "ocean", overlayType: "salinity"}),
+        "prog_salinity": {
+            matches: _.matches({param: "ocean", overlayType: "prog_salinity"}),
             create: function(attr) {
                 return buildProduct({
                     field: "scalar",
-                    type: "salinity",
+                    type: "prog_salinity",
                     description: localize({
                         name: {en: "Salinity"},
                         qualifier: {en: " @ " + describeSurface(attr)}

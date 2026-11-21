@@ -1085,8 +1085,8 @@
             var value = "None";
             if (overlayType === "default") {
                 value = "WindSpeed";
-            } else if (overlayType === "ocean_temperature") {
-                value = "OceanTemperature";
+            } else if (overlayType === "temperature") {
+                value = "Temperature";
             } else if (overlayType === "relative_humidity") {
                 value = "RelativeHumidity";
             } else if (overlayType === "off") {
@@ -1138,10 +1138,10 @@
                     configuration.save({overlayType: "default"});
                     break;
                 case "SeaSurfaceTemperature":
-                    configuration.save({overlayType: "ss_temperature"});
+                    configuration.save({overlayType: "prog_temperature"});
                     break;
-                case "Salinity":
-                    configuration.save({overlayType: "salinity"});
+                case "SeaSurfaceSalinity":
+                    configuration.save({overlayType: "prog_salinity"});
                     break;
             }
         });
@@ -1155,10 +1155,10 @@
                 value = "None";
             } else if (overlayType === "default") {
                 value = "Currents";
-            } else if (overlayType === "ss_temperature") {
+            } else if (overlayType === "prog_temperature") {
                 value = "SeaSurfaceTemperature";
-            } else if (overlayType === "salinity") {
-                value = "Salinity";
+            } else if (overlayType === "prog_salinity") {
+                value = "SeaSurfaceSalinity";
             } else {
                 value = overlayType;
             }
