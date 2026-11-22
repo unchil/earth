@@ -12,7 +12,7 @@ import pandas as pd
 from scipy.interpolate import LinearNDInterpolator
 from scipy.spatial import Delaunay
 import xarray as xr
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from datetime import time as dt_time
 
 DEFAULT_DOWNLOAD_DIR = "/Library/WebServer/Documents/data/download"
@@ -442,7 +442,7 @@ def process_ice_file(
 ) -> List[str]:
     generated_files: List[str] = []
 
-    print(f"\n[ice 파일 처리 시작] file={file_path.name}")
+    print(f"[ice 파일 처리 시작] file={file_path.name}")
 
     with xr.open_dataset(file_path, chunks={"MT": 1}) as ds:
         validate_dataset_grid_compatibility(
@@ -452,17 +452,15 @@ def process_ice_file(
             check_coords=check_coords,
         )
 
-        mt_array = pd.to_datetime(ds["MT"].compute().values)
-
-
         today_00_utc = datetime.now(timezone.utc).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        ref_time = today_00_utc.isoformat()
+            hour=0, minute=0, second=0, microsecond=0 )
+        forecast_hour = int(file_path.name.split("_")[3][-3:])
+        forecast_time = today_00_utc + timedelta(hours=forecast_hour)
+        ref_time = today_00_utc.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        time_str = f"{forecast_time.strftime("%Y%m%d%H")}"
+        print(  f"ref_time={ref_time}, forecast_time={time_str}")
 
-
-        print("ref_time:", ref_time)
-
+        mt_array = pd.to_datetime(ds["MT"].compute().values)
         if mt_array.size == 0:
             print(f"[스킵] MT가 비어 있습니다: {file_path}")
             return generated_files
@@ -490,15 +488,6 @@ def process_ice_file(
         for mt_idx in range(start_idx, end_idx + 1):
             t0 = time.time()
 
-            forecast_dt = pd.to_datetime(ref_time)
-            forecast_time = int(file_path.name.split("_")[3][-3:])
-            time_str = f"{forecast_dt.strftime("%Y%m%d")}{forecast_time:02d}"
-
-            print(
-                f"[MT 처리] {file_path.name} / MT={mt_idx}/{mt_array.size - 1} "
-                f"/ ref_time={ref_time},  forecast_time={time_str}"
-            )
-
             for output_type, output_specs in grouped_specs.items():
                 payload: List[Dict] = []
 
@@ -517,7 +506,7 @@ def process_ice_file(
                                 "header": build_header(
                                     spec=spec,
                                     ref_time=ref_time,
-                                    forecast_time=forecast_time,
+                                    forecast_time=forecast_hour,
                                     data_length=len(data),
                                 ),
                                 "data": data,
