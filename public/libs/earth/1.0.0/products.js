@@ -30,7 +30,7 @@ var products = function() {
 
     function earthDataServiceUrl(attr, type){
         var mode =  attr.param === 'wind' ? 'air' : attr.param === 'ocean' ? 'ocean' : 'ice';
-        var stamp, level, url, surface;
+        var stamp, level, surface , url, prefix;
 
         if( mode === 'air'){
             stamp = attr.date === "current" ? "current" : attr.date.replace(/\//g, "") + attr.hour.slice(0, 2);
@@ -39,9 +39,9 @@ var products = function() {
             url = `${ENDPOINT}?time=${stamp}&mode=${mode}&type=${type}&surface=${surface}&level=${level}`;
             return url;
         }else{
-            var prefix = µ.ymdRedelimit(attr.date, "/", "", attr.param);
-            stamp = attr.date === "current" ? "current" : prefix;
-            surface =  "surface";
+            prefix = µ.ymdRedelimit(attr.date, "/", "", attr.param);
+            stamp = attr.date === "current" ? "current" : prefix + attr.hour.slice(0, 2);
+            surface = "surface";
             level = "level";
             url = `${ENDPOINT}?time=${stamp}&mode=${mode}&type=${type}&surface=${surface}&level=${level}`;
             return url;
