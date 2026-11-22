@@ -135,7 +135,6 @@ var µ = function() {
             return ymd.substring(0, 4) + toDelimiter + ymd.substring(4, 2) + toDelimiter + ymd.substring(6, 2);
         }
         var parts = ymd.substring(0, 10).split(fromDelimiter)
-       // var parts = (  param ==='ocean') ? [ymd.substring(0, 4), ymd.substring(5, 7), ymd.substring(8,10), ymd.substring(11, 13)]: ymd.substring(0, 10).split(fromDelimiter);
         return parts.join(toDelimiter);
     }
 
