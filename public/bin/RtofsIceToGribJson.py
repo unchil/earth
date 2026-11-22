@@ -523,7 +523,7 @@ def process_ice_file(
                     if conn:
                         record = (time_str, 'ice', output_type, 'surface', 'level', json.dumps(payload))
                         batch_data.append(record)
-                        if forecast_time == 0:
+                        if forecast_hour == 0:
                             current_data.append(record)
                     else:
                         output_filename = save_payload(
