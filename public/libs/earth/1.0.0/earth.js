@@ -986,11 +986,16 @@
             // 2. 값에 따른 시각화 업데이트 로직 수행
             if (selectedValue === "Air") {
                 if (configuration.get("param") !== "wind") {
-                    configuration.save({param: "wind", surface: "surface", level: "level", overlayType: "default"});
+                    stopCurrentAnimation(true);
+                    var wind = {param: "wind", surface: "surface", level: "level", overlayType: "default",  date:"current"}
+                    configuration.save(wind);
                 }
             } else if (selectedValue === "Ocean") {
                 if (configuration.get("param") !== "ocean") {
-                    var ocean = {param: "ocean", surface: "surface", level: "currents", overlayType: "default"};
+                    stopCurrentAnimation(true);
+                    var ocean = {param: "ocean", surface: "surface", level: "currents", overlayType: "default",  date:"current"};
+                    configuration.save(ocean);
+/*
                     var attr = _.clone(configuration.attributes);
                     if (attr.date === "current") {
                         configuration.save(ocean);
@@ -1002,10 +1007,13 @@
                         }).otherwise(report.error);
                     }
                     stopCurrentAnimation(true);  // cleanup particle artifacts over continents
+ */
                 }
             } else if (selectedValue === "Ice") {
                 if (configuration.get("param") !== "ice") {
-                    configuration.save({param: "ice", surface: "surface", level: "level", overlayType: "default"});
+                    stopCurrentAnimation(true);
+                    var ice = { param: "ice", surface: "surface", level: "level", overlayType: "default", date:"current" };
+                    configuration.save(ice);
                 }
             }
         });
