@@ -17,7 +17,7 @@ from datetime import time as dt_time
 
 DEFAULT_DOWNLOAD_DIR = "/Library/WebServer/Documents/data/download"
 DEFAULT_OUTPUT_DIR = "/Library/WebServer/Documents/data/rtofs"
-DEFAULT_SHARED_GRID_PATH = "/Library/WebServer/Documents/data/rtofs/shared_grid_prog.pkl"
+DEFAULT_SHARED_GRID_PATH = "/Library/WebServer/Documents/data/rtofs/shared_grid_ice.pkl"
 
 TARGET_LONS = np.arange(0, 360, 1.0)
 TARGET_LATS = np.arange(90, -91, -1.0)
@@ -180,8 +180,7 @@ def build_shared_triangulation(first_ice_file: Path) -> Dict:
         "valid_mask": valid_mask,
         "points": points,
         "total_cells": int(valid_mask.size),
-        "source_file": str(first_ice_file),
-        "source_forecast_hour": int(first_forecast_hour),
+        "source_file": str(first_ice_file)
     }
 
 
@@ -207,7 +206,7 @@ def load_shared_grid(shared_grid_path: str) -> Dict:
     with open(grid_file, "rb") as f:
         shared_grid = pickle.load(f)
 
-    required_keys = {"tri", "valid_mask", "points", "ref_time"}
+    required_keys = {"tri", "valid_mask", "points"}
     missing = required_keys - set(shared_grid.keys())
     if missing:
         raise ValueError(f"shared_grid 필수 키가 누락되었습니다: {sorted(missing)}")
@@ -229,7 +228,7 @@ def load_shared_grid(shared_grid_path: str) -> Dict:
 
     print(
         f"[shared_grid 로드 완료] {grid_file} "
-        f"(points={len(points):,}, refTime={shared_grid.get('ref_time')})"
+        f"(points={len(points)})"
     )
     return shared_grid
 
@@ -245,7 +244,7 @@ def get_or_create_shared_grid(
     if grid_file.exists() and not rebuild:
         return load_shared_grid(shared_grid_path)
 
-    shared_grid = build_shared_triangulation(first_ice_file)
+    shared_grid = build_shared_triangulation(first_ice_file, )
     save_shared_grid(shared_grid, shared_grid_path)
     return shared_grid
 
@@ -492,18 +491,13 @@ def process_ice_file(
             t0 = time.time()
 
             forecast_dt = pd.to_datetime(ref_time)
-            time_str = forecast_dt.strftime("%Y%m%d%H")
             forecast_time = int(file_path.name.split("_")[3][-3:])
-
-
-
+            time_str = f"{forecast_dt.strftime("%Y%m%d")}{forecast_time:02d}"
 
             print(
                 f"[MT 처리] {file_path.name} / MT={mt_idx}/{mt_array.size - 1} "
-                f"/ {time_str}, forecast_time={forecast_time}"
+                f"/ ref_time={ref_time},  forecast_time={time_str}"
             )
-
-
 
             for output_type, output_specs in grouped_specs.items():
                 payload: List[Dict] = []
@@ -642,7 +636,7 @@ def main():
     conn = None
     if args.useDb == "Y":
         conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
-        conn.cursor().execute("DELETE FROM Earth_Current_Tbl WHERE mode = 'ocean' AND type LIKE 'ice%' ")
+        conn.cursor().execute("DELETE FROM Earth_Current_Tbl WHERE mode = 'ice' AND type LIKE 'ice%' ")
         conn.commit()
 
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)

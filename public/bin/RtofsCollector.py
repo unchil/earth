@@ -266,8 +266,8 @@ def parse_args():
     parser.add_argument(
         "--duration-hours",
         type=int,
-        default=36,
-        help="시작 시각으로부터 수집할 총 시간 범위(시간 단위, 기본값: 36 -> f036까지)",
+        default=72,
+        help="시작 시각으로부터 수집할 총 시간 범위(시간 단위, 기본값: 72 -> f072까지)",
     )
     parser.add_argument(
         "--download-dir",
