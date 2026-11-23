@@ -208,7 +208,7 @@ def get_first_rtofs_file(files_by_hour: Dict[int, Path], mode: str) -> Tuple[int
 
 def normalize_longitude(ds: xr.Dataset) -> np.ndarray:
     lon = ds["Longitude"].compute()
-    lon = xr.where(lon >= 360, lon % 360, lon)
+    lon = xr.where((lon >= 360) | (lon < 0), lon % 360, lon)
     return lon.values.flatten()
 
 
@@ -297,7 +297,7 @@ def build_shared_triangulation(first_file: Path, mode: str) -> Dict:
                 f"좌표 배열 크기 불일치 ({first_file.name}): lat={lat_2d.size}, lon={lon_2d.size}"
             )
 
-        valid_mask = ~np.isnan(lat_2d) & ~np.isnan(lon_2d)
+        valid_mask = np.isfinite(lat_2d) & np.isfinite(lon_2d)
         used_vars: List[str] = []
 
         for spec in specs:
@@ -319,14 +319,34 @@ def build_shared_triangulation(first_file: Path, mode: str) -> Dict:
                     f"var={var_1d.size}, coord={valid_mask.size}"
                 )
 
-            valid_mask = valid_mask & ~np.isnan(var_1d)
+            valid_mask = valid_mask & np.isfinite(var_1d)
             used_vars.append(var_name)
 
         if not used_vars:
             raise ValueError(f"공통 유효 마스크 생성을 위한 대상 변수가 없습니다: {first_file.name}")
 
         points = np.column_stack((lon_2d[valid_mask], lat_2d[valid_mask]))
-        if len(points) == 0:
+
+        """
+        경도 모듈로(% 360) 변환 후나 고위도(lat_max ≈ 89.98) 부근에서 서로 다른 격자 셀이 동일 (lon, lat) 좌표로 겹칠 수 있습니다. 
+        중복 좌표 제거(np.unique(..., axis=0)) 여부를 확인해야 합니다.
+        """
+        unique_points = np.unique(points, axis=0)
+        dup_count = len(points) - len(unique_points)
+        print(f"[좌표 중복 점검] total={len(points):,}, unique={len(unique_points):,}, duplicates={dup_count:,}")
+
+        # 중복 (lon, lat) 좌표 제거
+        if dup_count > 0:
+            valid_indices = np.flatnonzero(valid_mask)
+            _, unique_pos = np.unique(points, axis=0, return_index=True)
+            unique_pos = np.sort(unique_pos)
+
+            dedup_mask = np.zeros_like(valid_mask, dtype=bool)
+            dedup_mask[valid_indices[unique_pos]] = True
+            valid_mask = dedup_mask
+            points = points[unique_pos]
+
+        if len(points) < 3:
             raise ValueError("공통 Delaunay 생성을 위한 유효 points가 없습니다.")
 
         print(
