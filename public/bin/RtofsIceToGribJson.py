@@ -236,7 +236,6 @@ def load_shared_grid(shared_grid_path: str) -> Dict:
 def get_or_create_shared_grid(
         shared_grid_path: str,
         first_ice_file: Path,
-        first_forecast_hour: int,
         rebuild: bool = False,
 ) -> Dict:
     """저장된 shared_grid가 있으면 로드하고, 없거나 rebuild=True이면 생성 후 저장"""
@@ -429,11 +428,8 @@ def insert_payload(conn):
         print(f"데이터 Insert 중 오류 발생: {e}")
 
 
-
-
-
 def process_ice_file(
-        file_path: Path,
+        file_info: Tuple[Path, str, int],
         shared_grid: Dict,
         output_dir: str,
         mt_range: Optional[Tuple[int, int]] = None,
@@ -442,7 +438,10 @@ def process_ice_file(
 ) -> List[str]:
     generated_files: List[str] = []
 
-    print(f"[ice 파일 처리 시작] file={file_path.name}")
+    file_path, ref_time, forecast_hour = file_info
+    time_str = get_time_str(forecast_hour)
+    print(f"[ice 파일 처리 시작] file={file_path.name}, ref_time={ref_time}, forecast_hour={forecast_hour}, time_str={time_str}")
+
 
     with xr.open_dataset(file_path, chunks={"MT": 1}) as ds:
         validate_dataset_grid_compatibility(
@@ -452,15 +451,8 @@ def process_ice_file(
             check_coords=check_coords,
         )
 
-        today_00_utc = datetime.now(timezone.utc).replace(
-            hour=0, minute=0, second=0, microsecond=0 )
-        forecast_hour = int(file_path.name.split("_")[3][-3:])
-        forecast_time = today_00_utc + timedelta(hours=forecast_hour)
-        ref_time = today_00_utc.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-        time_str = f"{forecast_time.strftime("%Y%m%d%H")}"
-        print(  f"ref_time={ref_time}, forecast_time={time_str}")
-
         mt_array = pd.to_datetime(ds["MT"].compute().values)
+
         if mt_array.size == 0:
             print(f"[스킵] MT가 비어 있습니다: {file_path}")
             return generated_files
@@ -475,8 +467,6 @@ def process_ice_file(
         if start_idx > end_idx:
             print(f"[스킵] 처리 가능한 MT 범위가 없습니다: {file_path}")
             return generated_files
-
-
 
         grouped_specs: Dict[str, List[Dict]] = {}
         for spec in PROG_VARIABLE_SPECS:
@@ -573,6 +563,24 @@ def update_catalog(output_dir: str, generated_files: List[str]) -> None:
     print(f"[catalog 저장 완료] {catalog_path} / total_count={len(merged_files)}")
 
 
+def get_ref_time() -> str:
+
+    today_00_utc = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0 )
+
+    return today_00_utc.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+
+def get_time_str( first_forecast_hour: int) -> str:
+    today_00_utc = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0 )
+
+    forecast_time = today_00_utc + timedelta(hours=first_forecast_hour)
+    time_str = f"{forecast_time.strftime("%Y%m%d%H")}"
+
+    return time_str
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Convert RTOFS ice.nc files to GRIB2 JSON using a reusable shared_grid file."
@@ -637,10 +645,11 @@ def main():
     first_hour, first_ice_file = get_first_ice_file(ice_by_hour)
     print(f"[첫 번째 ice.nc] f{first_hour:03d}: {first_ice_file.name}")
 
+    ref_time = get_ref_time()
+
     shared_grid = get_or_create_shared_grid(
         shared_grid_path=args.shared_grid_path,
         first_ice_file=first_ice_file,
-        first_forecast_hour=first_hour,
         rebuild=args.rebuild_shared_grid,
     )
 
@@ -650,7 +659,7 @@ def main():
         print(f"\n========== f{forecast_hour:03d} (ice) 처리 시작 ==========")
         try:
             generated_files = process_ice_file(
-                file_path=ice_file,
+                file_info=(ice_file, ref_time, forecast_hour),
                 shared_grid=shared_grid,
                 output_dir=args.output_dir,
                 mt_range=tuple(args.mt_range) if args.mt_range else None,
