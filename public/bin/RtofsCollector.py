@@ -11,7 +11,7 @@ import urllib.request
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_DOWNLOAD_DIR = os.path.normpath(os.path.join(BASE_DIR, "..", "data", "download"))
-DEFAULT_FILE_TYPES = ["prog"]
+DEFAULT_FILE_TYPES = ["ice", "prog"]
 ALLOWED_FILE_TYPES = ["diag", "ice", "prog"]
 
 
