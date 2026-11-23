@@ -131,7 +131,23 @@ def get_variable_2d(
     return ds[variable_name].isel(MT=mt_idx).compute().values.flatten()
 
 
-def build_shared_triangulation(first_prog_file: Path, first_forecast_hour: int) -> Dict:
+def get_ref_time(first_prog_file: Path, first_forecast_hour: int) -> str:
+    with xr.open_dataset(first_prog_file, chunks={"MT": 1}) as ds:
+        mt_array = pd.to_datetime(ds["MT"].compute().values)
+        if mt_array.size == 0:
+            raise ValueError(f"기준 prog 파일의 MT가 비어 있습니다: {first_prog_file}")
+
+        ref_time = pd.to_datetime(mt_array[0]).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        if first_forecast_hour != 0:
+            cur_dt = datetime.fromisoformat(ref_time.replace("Z", "+00:00"))
+            target_dt = cur_dt - timedelta(hours=(first_forecast_hour - 0))
+            ref_time = pd.to_datetime(target_dt).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+    return ref_time
+
+
+
+def build_shared_triangulation(first_prog_file: Path) -> Dict:
     print(f"[공통 Delaunay 생성 기준 파일] {first_prog_file}")
     t0 = time.time()
 
@@ -140,8 +156,6 @@ def build_shared_triangulation(first_prog_file: Path, first_forecast_hour: int) 
 
         if mt_array.size == 0:
             raise ValueError(f"기준 prog 파일의 MT가 비어 있습니다: {first_prog_file}")
-
-        ref_datetime = pd.to_datetime(mt_array[0]) - pd.Timedelta(hours=first_forecast_hour)
 
         lat_2d = ds["Latitude"].compute().values.flatten()
         lon_2d = normalize_longitude(ds)
@@ -163,19 +177,15 @@ def build_shared_triangulation(first_prog_file: Path, first_forecast_hour: int) 
         tri = Delaunay(points)
 
     elapsed = time.time() - t0
-    ref_time_str = ref_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
     print(f"[공통 Delaunay 완료] 소요 시간: {elapsed:.2f}초")
-    print(f"[공통 refTime] {ref_time_str}")
 
     return {
         "tri": tri,
         "valid_mask": valid_mask,
         "points": points,
         "total_cells": int(valid_mask.size),
-        "ref_datetime": ref_datetime,
-        "ref_time": ref_time_str,
-        "source_file": str(first_prog_file),
-        "source_forecast_hour": int(first_forecast_hour),
+        "source_file": str(first_prog_file)
     }
 
 
@@ -201,7 +211,7 @@ def load_shared_grid(shared_grid_path: str) -> Dict:
     with open(grid_file, "rb") as f:
         shared_grid = pickle.load(f)
 
-    required_keys = {"tri", "valid_mask", "points", "ref_time"}
+    required_keys = {"tri", "valid_mask", "points"}
     missing = required_keys - set(shared_grid.keys())
     if missing:
         raise ValueError(f"shared_grid 필수 키가 누락되었습니다: {sorted(missing)}")
@@ -222,8 +232,7 @@ def load_shared_grid(shared_grid_path: str) -> Dict:
     shared_grid["points"] = points
 
     print(
-        f"[shared_grid 로드 완료] {grid_file} "
-        f"(points={len(points):,}, refTime={shared_grid.get('ref_time')})"
+        f"[shared_grid 로드 완료] {grid_file}, points={len(points)}"
     )
     return shared_grid
 
@@ -231,7 +240,6 @@ def load_shared_grid(shared_grid_path: str) -> Dict:
 def get_or_create_shared_grid(
         shared_grid_path: str,
         first_prog_file: Path,
-        first_forecast_hour: int,
         rebuild: bool = False,
 ) -> Dict:
     """저장된 shared_grid가 있으면 로드하고, 없거나 rebuild=True이면 생성 후 저장"""
@@ -239,7 +247,7 @@ def get_or_create_shared_grid(
     if grid_file.exists() and not rebuild:
         return load_shared_grid(shared_grid_path)
 
-    shared_grid = build_shared_triangulation(first_prog_file, first_forecast_hour)
+    shared_grid = build_shared_triangulation(first_prog_file)
     save_shared_grid(shared_grid, shared_grid_path)
     return shared_grid
 
@@ -401,7 +409,6 @@ def save_payload(
     return output_filename
 
 
-
 def insert_payload(conn):
     try:
         query_batch = """INSERT INTO Earth_Tbl (forecast_time, mode, type, surface, level, grib2json)
@@ -424,11 +431,8 @@ def insert_payload(conn):
         print(f"데이터 Insert 중 오류 발생: {e}")
 
 
-
-
-
 def process_prog_file(
-        file_path: Path,
+        file_info: Tuple[Path, str, int],
         shared_grid: Dict,
         output_dir: str,
         mt_range: Optional[Tuple[int, int]] = None,
@@ -437,7 +441,9 @@ def process_prog_file(
 ) -> List[str]:
     generated_files: List[str] = []
 
-    print(f"\n[prog 파일 처리 시작] file={file_path.name}")
+    file_path=file_info[0]
+    print(f"[prog 파일 처리 시작] file={file_path.name}, ref_time={file_info[1]}, forecast_hour={file_info[2]}")
+
 
     with xr.open_dataset(file_path, chunks={"MT": 1}) as ds:
         validate_dataset_grid_compatibility(
@@ -447,7 +453,7 @@ def process_prog_file(
             check_coords=check_coords,
         )
 
-        mt_array = pd.to_datetime(ds["MT"].compute().values)
+        mt_array = ds["MT"].compute().values
 
         if mt_array.size == 0:
             print(f"[스킵] MT가 비어 있습니다: {file_path}")
@@ -464,8 +470,6 @@ def process_prog_file(
             print(f"[스킵] 처리 가능한 MT 범위가 없습니다: {file_path}")
             return generated_files
 
-        ref_time = shared_grid["ref_time"]
-
         grouped_specs: Dict[str, List[Dict]] = {}
         for spec in PROG_VARIABLE_SPECS:
             if spec["name"] not in ds:
@@ -476,16 +480,12 @@ def process_prog_file(
         for mt_idx in range(start_idx, end_idx + 1):
             t0 = time.time()
 
+            # prog file 의 경우 mt_array[mt_idx] 이 forecast_time 이다.
             forecast_dt = pd.to_datetime(mt_array[mt_idx])
             time_str = forecast_dt.strftime("%Y%m%d%H")
-            forecast_time = int(file_path.name.split("_")[3][-3:])
-
-            print(
-                f"[MT 처리] {file_path.name} / MT={mt_idx}/{mt_array.size - 1} "
-                f"/ {time_str}, forecast_time={forecast_time}"
-            )
 
 
+            print( f" MT={mt_idx}/{mt_array.size - 1}, ref_time={file_info[1]}, forecast_time={time_str}, forecast_hour={file_info[2]}")
 
             for output_type, output_specs in grouped_specs.items():
                 payload: List[Dict] = []
@@ -504,8 +504,8 @@ def process_prog_file(
                             {
                                 "header": build_header(
                                     spec=spec,
-                                    ref_time=ref_time,
-                                    forecast_time=forecast_time,
+                                    ref_time=file_info[1],
+                                    forecast_time=file_info[2],
                                     data_length=len(data),
                                 ),
                                 "data": data,
@@ -522,7 +522,7 @@ def process_prog_file(
                     if conn:
                         record = (time_str, 'ocean', output_type, 'surface', 'level', json.dumps(payload))
                         batch_data.append(record)
-                        if forecast_time == 0:
+                        if file_info[2] == 0:
                             current_data.append(record)
                     else:
                         output_filename = save_payload(
@@ -636,10 +636,12 @@ def main():
     first_hour, first_prog_file = get_first_prog_file(prog_by_hour)
     print(f"[첫 번째 prog.nc] f{first_hour:03d}: {first_prog_file.name}")
 
+    # 첫 번째 prog file 의 first_hour 를 사용하여 first_hour 가 0 일때의 ref_time 구한다.
+    ref_time = get_ref_time(first_prog_file, first_hour)
+
     shared_grid = get_or_create_shared_grid(
         shared_grid_path=args.shared_grid_path,
         first_prog_file=first_prog_file,
-        first_forecast_hour=first_hour,
         rebuild=args.rebuild_shared_grid,
     )
 
@@ -647,14 +649,15 @@ def main():
 
     for forecast_hour, prog_file in prog_by_hour.items():
         print(f"\n========== f{forecast_hour:03d} (prog) 처리 시작 ==========")
+
         try:
             generated_files = process_prog_file(
-                file_path=prog_file,
+                file_info=(prog_file, ref_time, forecast_hour),
                 shared_grid=shared_grid,
                 output_dir=args.output_dir,
                 mt_range=tuple(args.mt_range) if args.mt_range else None,
                 check_coords=args.check_coords,
-                conn=conn
+                conn=conn,
             )
             all_generated_files.extend(generated_files)
         except Exception as error:
