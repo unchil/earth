@@ -609,6 +609,33 @@
         });
     }
 
+    function resolveScaleTarget(grids, overlayType) {
+        if (!grids) return null;
+        var hasDistinctOverlay =
+            grids.overlayGrid &&
+            grids.overlayGrid !== grids.primaryGrid &&
+            overlayType &&
+            overlayType !== "off" &&
+            overlayType !== "default";
+
+        if (hasDistinctOverlay) {
+            return {
+                product: grids.overlayGrid,
+                isVectorPrimary: false
+            };
+        }
+
+        if (grids.primaryGrid) {
+            return {
+                product: grids.primaryGrid,
+                isVectorPrimary: grids.primaryGrid.field === "vector"
+            };
+        }
+
+        return null;
+    }
+
+    /*
     function drawOverlay(field, overlayType) {
         if (!field) return;
 
@@ -628,7 +655,7 @@
             var colorBar = d3.select("#scale"), scale = grid.scale, bounds = scale.bounds;
             var c = colorBar.node(), g = c.getContext("2d"), n = c.width - 1;
             for (var i = 0; i <= n; i++) {
-                var rgb = scale.gradient(µ.spread(i / n, bounds[0], bounds[1]), 1);
+                var rgb = scale.gradient( µ.spread(i / n, bounds[0], bounds[1]) , 1);
                 g.fillStyle = "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
                 g.fillRect(i, 0, 1, c.height);
             }
@@ -663,6 +690,97 @@
                     .style("left", (d3.event.pageX + 10) + "px")
                     .style("top", (d3.event.pageY - 25) + "px")
                     .text(µ.formatScalar(value, units) + " " + units.label);
+            });
+            colorBar.on("mouseout", function() {
+                tooltip.style("display", "none");
+            });
+        }
+    }
+*/
+    function drawOverlay(field, overlayType) {
+        if (!field) return;
+
+        var grids = gridAgent.value() || {};
+        var ctx = d3.select("#overlay").node().getContext("2d");
+        var overlayGrid = grids.overlayGrid;
+
+        µ.clearCanvas(d3.select("#overlay").node());
+        µ.clearCanvas(d3.select("#scale").node());
+
+        if (overlayType) {
+            if (overlayType !== "off") {
+                ctx.putImageData(field.overlay, 0, 0);
+            }
+            drawGridPoints(ctx, overlayGrid, globeAgent.value());
+        }
+
+        var hasDistinctOverlay =
+            overlayGrid &&
+            overlayGrid !== grids.primaryGrid &&
+            overlayType &&
+            overlayType !== "off" &&
+            overlayType !== "default";
+
+        var scaleGrid = hasDistinctOverlay ? overlayGrid : grids.primaryGrid;
+
+        if (scaleGrid && scaleGrid.scale) {
+            var colorBar = d3.select("#scale");
+            var c = colorBar.node();
+
+            // 메뉴가 늦게 열려 width가 0이었던 경우 보정
+            if (!c.width && d3.select("#menu").node()) {
+                c.width = Math.max(100, Math.floor(d3.select("#menu").node().offsetWidth * 0.97));
+            }
+
+            var scale = scaleGrid.scale;
+            var bounds = scale.bounds;
+            var g = c.getContext("2d");
+            var n = c.width - 1;
+
+            for (var i = 0; i <= n; i++) {
+                var v = µ.spread(i / n, bounds[0], bounds[1]);
+                var rgb = scale.gradient(v, 1);
+                g.fillStyle = "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
+                g.fillRect(i, 0, 1, c.height);
+            }
+
+            // 커스텀 툴팁 요소 생성 (없으면 생성)
+            var tooltip = d3.select("#scale-tooltip");
+            if (tooltip.empty()) {
+                tooltip = d3.select("body").append("div")
+                    .attr("id", "scale-tooltip")
+                    .style("position", "absolute")
+                    .style("padding", "4px 8px")
+                    .style("background", "rgba(0, 0, 0, 0.75)")
+                    .style("color", "#fff")
+                    .style("border-radius", "3px")
+                    .style("font-size", "11px")
+                    .style("pointer-events", "none")
+                    .style("display", "none")
+                    .style("z-index", "1000");
+            }
+
+            // Show custom tooltip on hover.
+            colorBar.on("mousemove", function() {
+                var x = d3.mouse(this)[0];
+                var actualWidth = this.offsetWidth || c.width;
+                var pct = µ.clamp(x / actualWidth, 0, 1);
+                var value = µ.spread(pct, bounds[0], bounds[1]);
+
+
+                // 수정: target 대신 hasDistinctOverlay와 grids 상태를 직접 확인하거나
+                // 아래와 같이 scaleGrid의 속성을 활용합니다.
+                var isVector = scaleGrid.field === "vector";
+                var elementId = isVector ? "#location-wind-units" : "#location-value-units";
+
+                // 수정: scaleProduct 대신 scaleGrid를 사용
+                var units = createUnitToggle(elementId, scaleGrid).value();
+
+                tooltip
+                    .style("display", "block")
+                    .style("left", (d3.event.pageX + 10) + "px")
+                    .style("top", (d3.event.pageY - 25) + "px")
+                    .text(µ.formatScalar(value, units) + (units.label ? " " + units.label : ""));
             });
             colorBar.on("mouseout", function() {
                 tooltip.style("display", "none");
