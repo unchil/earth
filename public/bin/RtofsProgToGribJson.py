@@ -426,7 +426,6 @@ def insert_payload(conn):
         conn.commit()
         print(f"batch_data[{len(batch_data)}],current_data[{len(current_data)}]: 데이터가 Insert 되었습니다.")
 
-        conn.close()
     except Exception as e:
         print(f"데이터 Insert 중 오류 발생: {e}")
 
@@ -624,8 +623,7 @@ def main():
     conn = None
     if args.useDb == "Y":
         conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
-        conn.cursor().execute("DELETE FROM Earth_Current_Tbl WHERE mode = 'ocean' AND type LIKE 'prog%' ")
-        conn.commit()
+
 
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -668,6 +666,10 @@ def main():
 
     if conn:
         insert_payload(conn)
+        time_str = pd.to_datetime(ref_time).strftime("%Y%m%d%H")
+        conn.cursor().execute("DELETE FROM Earth_Current_Tbl WHERE mode = ? AND type LIKE ? AND forecast_time < ?", ('ocean', 'prog%', time_str,))
+        conn.commit()
+        conn.close()
     else:
         update_catalog(args.output_dir, all_generated_files)
 

@@ -420,10 +420,10 @@ def insert_payload(conn):
                                ON CONFLICT(forecast_time, mode, type, surface, level) DO UPDATE SET
             grib2json = excluded.grib2json"""
         conn.cursor().executemany(query_current, current_data)
+
         conn.commit()
         print(f"batch_data[{len(batch_data)}],current_data[{len(current_data)}]: 데이터가 Insert 되었습니다.")
 
-        conn.close()
     except Exception as e:
         print(f"데이터 Insert 중 오류 발생: {e}")
 
@@ -633,8 +633,6 @@ def main():
     conn = None
     if args.useDb == "Y":
         conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
-        conn.cursor().execute("DELETE FROM Earth_Current_Tbl WHERE mode = 'ice' AND type LIKE 'ice%' ")
-        conn.commit()
 
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -675,6 +673,10 @@ def main():
 
     if conn:
         insert_payload(conn)
+        time_str = get_time_str(0)
+        conn.cursor().execute("DELETE FROM Earth_Current_Tbl WHERE mode = ? AND type LIKE ? AND forecast_time < ?", ('ice', 'ice%', time_str,))
+        conn.commit()
+        conn.close()
     else:
         update_catalog(args.output_dir, all_generated_files)
 
