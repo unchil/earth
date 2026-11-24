@@ -86,10 +86,6 @@ var products = function() {
         return attr.surface === "surface" ? "Surface" : µ.capitalize(attr.level);
     }
 
-    function describeSurfaceJa(attr) {
-        return attr.surface === "surface" ? "地上" : µ.capitalize(attr.level);
-    }
-
     /**
      * Returns a function f(langCode) that, given table:
      *     {foo: {en: "A", ja: "あ"}, bar: {en: "I", ja: "い"}}

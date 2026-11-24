@@ -609,95 +609,6 @@
         });
     }
 
-    /*
-function resolveScaleTarget(grids, overlayType) {
-    if (!grids) return null;
-    var hasDistinctOverlay =
-        grids.overlayGrid &&
-        grids.overlayGrid !== grids.primaryGrid &&
-        overlayType &&
-        overlayType !== "off" &&
-        overlayType !== "default";
-
-    if (hasDistinctOverlay) {
-        return {
-            product: grids.overlayGrid,
-            isVectorPrimary: false
-        };
-    }
-
-    if (grids.primaryGrid) {
-        return {
-            product: grids.primaryGrid,
-            isVectorPrimary: grids.primaryGrid.field === "vector"
-        };
-    }
-
-    return null;
-}
-
-
-function drawOverlay(field, overlayType) {
-    if (!field) return;
-
-    var ctx = d3.select("#overlay").node().getContext("2d"), grid = (gridAgent.value() || {}).overlayGrid;
-
-    µ.clearCanvas(d3.select("#overlay").node());
-    µ.clearCanvas(d3.select("#scale").node());
-    if (overlayType) {
-        if (overlayType !== "off") {
-            ctx.putImageData(field.overlay, 0, 0);
-        }
-        drawGridPoints(ctx, grid, globeAgent.value());
-    }
-
-    if (grid) {
-        // Draw color bar for reference.
-        var colorBar = d3.select("#scale"), scale = grid.scale, bounds = scale.bounds;
-        var c = colorBar.node(), g = c.getContext("2d"), n = c.width - 1;
-        for (var i = 0; i <= n; i++) {
-            var rgb = scale.gradient( µ.spread(i / n, bounds[0], bounds[1]) , 1);
-            g.fillStyle = "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
-            g.fillRect(i, 0, 1, c.height);
-        }
-
-        // 커스텀 툴팁 요소 생성 (없으면 생성)
-        var tooltip = d3.select("#scale-tooltip");
-        if (tooltip.empty()) {
-            tooltip = d3.select("body").append("div")
-                .attr("id", "scale-tooltip")
-                .style("position", "absolute")
-                .style("padding", "4px 8px")
-                .style("background", "rgba(0, 0, 0, 0.75)")
-                .style("color", "#fff")
-                .style("border-radius", "3px")
-                .style("font-size", "11px")
-                .style("pointer-events", "none")
-                .style("display", "none")
-                .style("z-index", "1000");
-        }
-
-        // Show custom tooltip on hover.
-        colorBar.on("mousemove", function() {
-            var x = d3.mouse(this)[0];
-            var actualWidth = this.offsetWidth || c.width;
-            var pct = µ.clamp(x / actualWidth, 0, 1);
-            var value = µ.spread(pct, bounds[0], bounds[1]);
-            var elementId = grid.type === "wind" ? "#location-wind-units" : "#location-value-units";
-            var units = createUnitToggle(elementId, grid).value();
-
-            tooltip
-                .style("display", "block")
-                .style("left", (d3.event.pageX + 10) + "px")
-                .style("top", (d3.event.pageY - 25) + "px")
-                .text(µ.formatScalar(value, units) + " " + units.label);
-        });
-        colorBar.on("mouseout", function() {
-            tooltip.style("display", "none");
-        });
-    }
-}
-*/
     function drawOverlay(field, overlayType) {
         if (!field) return;
 
@@ -967,13 +878,6 @@ function drawOverlay(field, overlayType) {
 
         d3.select("#show-menu").on("click", function() {
             d3.select("#menu").classed("invisible", !d3.select("#menu").classed("invisible"));
-            /*
-            if (µ.isEmbeddedInIFrame()) {
-                window.open("http://earth.nullschool.net/" + window.location.hash, "_blank");
-            } else {
-                d3.select("#menu").classed("invisible", !d3.select("#menu").classed("invisible"));
-            }
-            */
         });
 
         if (µ.isFF()) {
@@ -1131,7 +1035,7 @@ function drawOverlay(field, overlayType) {
             } else if (selectedValue === "Ice") {
                 if (configuration.get("param") !== "ice") {
                     stopCurrentAnimation(true);
-                    var ice = { param: "ice", surface: "surface", level: "level", overlayType: "default", date:"current" };
+                    var ice = { param: "ice", surface: "surface", level: "currents", overlayType: "default", date:"current" };
                     configuration.save(ice);
                 }
             }
@@ -1154,6 +1058,7 @@ function drawOverlay(field, overlayType) {
             }
         });
 
+        /*
         // Add logic to disable buttons that are incompatible with each other.
         configuration.on("change:overlayType", function(x, ot) {
             d3.select("#surface-level").classed("disabled", ot === "air_density" || ot === "wind_power_density");
@@ -1162,6 +1067,8 @@ function drawOverlay(field, overlayType) {
             d3.select("#overlay-air_density").classed("disabled", s === "surface");
             d3.select("#overlay-wind_power_density").classed("disabled", s === "surface");
         });
+
+         */
 
         // Add event handlers for the time navigation buttons.
         d3.select("#nav-backward-more").on("click", navigate.bind(null, -10));
