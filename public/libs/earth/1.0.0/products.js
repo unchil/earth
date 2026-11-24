@@ -723,7 +723,9 @@ var products = function() {
                         }
                     },
                     units: [
-                        {label: "°C", conversion: function(x) { return x ; },       precision: 1}
+                        {label: "°C", conversion: function(x) { return x ; },       precision: 1},
+                        {label: "°F", conversion: function(x) { return  (x * 1.8) + 32; }, precision: 1},
+                        {label: "K",  conversion: function(x) { return x + 273.15; },  precision: 1}
                     ],
                     scale: {
                         bounds: [-50, 0],
