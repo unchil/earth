@@ -609,93 +609,94 @@
         });
     }
 
-    function resolveScaleTarget(grids, overlayType) {
-        if (!grids) return null;
-        var hasDistinctOverlay =
-            grids.overlayGrid &&
-            grids.overlayGrid !== grids.primaryGrid &&
-            overlayType &&
-            overlayType !== "off" &&
-            overlayType !== "default";
-
-        if (hasDistinctOverlay) {
-            return {
-                product: grids.overlayGrid,
-                isVectorPrimary: false
-            };
-        }
-
-        if (grids.primaryGrid) {
-            return {
-                product: grids.primaryGrid,
-                isVectorPrimary: grids.primaryGrid.field === "vector"
-            };
-        }
-
-        return null;
-    }
-
     /*
-    function drawOverlay(field, overlayType) {
-        if (!field) return;
+function resolveScaleTarget(grids, overlayType) {
+    if (!grids) return null;
+    var hasDistinctOverlay =
+        grids.overlayGrid &&
+        grids.overlayGrid !== grids.primaryGrid &&
+        overlayType &&
+        overlayType !== "off" &&
+        overlayType !== "default";
 
-        var ctx = d3.select("#overlay").node().getContext("2d"), grid = (gridAgent.value() || {}).overlayGrid;
-
-        µ.clearCanvas(d3.select("#overlay").node());
-        µ.clearCanvas(d3.select("#scale").node());
-        if (overlayType) {
-            if (overlayType !== "off") {
-                ctx.putImageData(field.overlay, 0, 0);
-            }
-            drawGridPoints(ctx, grid, globeAgent.value());
-        }
-
-        if (grid) {
-            // Draw color bar for reference.
-            var colorBar = d3.select("#scale"), scale = grid.scale, bounds = scale.bounds;
-            var c = colorBar.node(), g = c.getContext("2d"), n = c.width - 1;
-            for (var i = 0; i <= n; i++) {
-                var rgb = scale.gradient( µ.spread(i / n, bounds[0], bounds[1]) , 1);
-                g.fillStyle = "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
-                g.fillRect(i, 0, 1, c.height);
-            }
-
-            // 커스텀 툴팁 요소 생성 (없으면 생성)
-            var tooltip = d3.select("#scale-tooltip");
-            if (tooltip.empty()) {
-                tooltip = d3.select("body").append("div")
-                    .attr("id", "scale-tooltip")
-                    .style("position", "absolute")
-                    .style("padding", "4px 8px")
-                    .style("background", "rgba(0, 0, 0, 0.75)")
-                    .style("color", "#fff")
-                    .style("border-radius", "3px")
-                    .style("font-size", "11px")
-                    .style("pointer-events", "none")
-                    .style("display", "none")
-                    .style("z-index", "1000");
-            }
-
-            // Show custom tooltip on hover.
-            colorBar.on("mousemove", function() {
-                var x = d3.mouse(this)[0];
-                var actualWidth = this.offsetWidth || c.width;
-                var pct = µ.clamp(x / actualWidth, 0, 1);
-                var value = µ.spread(pct, bounds[0], bounds[1]);
-                var elementId = grid.type === "wind" ? "#location-wind-units" : "#location-value-units";
-                var units = createUnitToggle(elementId, grid).value();
-
-                tooltip
-                    .style("display", "block")
-                    .style("left", (d3.event.pageX + 10) + "px")
-                    .style("top", (d3.event.pageY - 25) + "px")
-                    .text(µ.formatScalar(value, units) + " " + units.label);
-            });
-            colorBar.on("mouseout", function() {
-                tooltip.style("display", "none");
-            });
-        }
+    if (hasDistinctOverlay) {
+        return {
+            product: grids.overlayGrid,
+            isVectorPrimary: false
+        };
     }
+
+    if (grids.primaryGrid) {
+        return {
+            product: grids.primaryGrid,
+            isVectorPrimary: grids.primaryGrid.field === "vector"
+        };
+    }
+
+    return null;
+}
+
+
+function drawOverlay(field, overlayType) {
+    if (!field) return;
+
+    var ctx = d3.select("#overlay").node().getContext("2d"), grid = (gridAgent.value() || {}).overlayGrid;
+
+    µ.clearCanvas(d3.select("#overlay").node());
+    µ.clearCanvas(d3.select("#scale").node());
+    if (overlayType) {
+        if (overlayType !== "off") {
+            ctx.putImageData(field.overlay, 0, 0);
+        }
+        drawGridPoints(ctx, grid, globeAgent.value());
+    }
+
+    if (grid) {
+        // Draw color bar for reference.
+        var colorBar = d3.select("#scale"), scale = grid.scale, bounds = scale.bounds;
+        var c = colorBar.node(), g = c.getContext("2d"), n = c.width - 1;
+        for (var i = 0; i <= n; i++) {
+            var rgb = scale.gradient( µ.spread(i / n, bounds[0], bounds[1]) , 1);
+            g.fillStyle = "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
+            g.fillRect(i, 0, 1, c.height);
+        }
+
+        // 커스텀 툴팁 요소 생성 (없으면 생성)
+        var tooltip = d3.select("#scale-tooltip");
+        if (tooltip.empty()) {
+            tooltip = d3.select("body").append("div")
+                .attr("id", "scale-tooltip")
+                .style("position", "absolute")
+                .style("padding", "4px 8px")
+                .style("background", "rgba(0, 0, 0, 0.75)")
+                .style("color", "#fff")
+                .style("border-radius", "3px")
+                .style("font-size", "11px")
+                .style("pointer-events", "none")
+                .style("display", "none")
+                .style("z-index", "1000");
+        }
+
+        // Show custom tooltip on hover.
+        colorBar.on("mousemove", function() {
+            var x = d3.mouse(this)[0];
+            var actualWidth = this.offsetWidth || c.width;
+            var pct = µ.clamp(x / actualWidth, 0, 1);
+            var value = µ.spread(pct, bounds[0], bounds[1]);
+            var elementId = grid.type === "wind" ? "#location-wind-units" : "#location-value-units";
+            var units = createUnitToggle(elementId, grid).value();
+
+            tooltip
+                .style("display", "block")
+                .style("left", (d3.event.pageX + 10) + "px")
+                .style("top", (d3.event.pageY - 25) + "px")
+                .text(µ.formatScalar(value, units) + " " + units.label);
+        });
+        colorBar.on("mouseout", function() {
+            tooltip.style("display", "none");
+        });
+    }
+}
 */
     function drawOverlay(field, overlayType) {
         if (!field) return;
@@ -1140,7 +1141,16 @@
         configuration.on("change:param", function(x, param) {
             var selectNode = d3.select("#mode-select").node();
             if (selectNode) {
-                selectNode.value = param === "ocean" ? "Ocean" :  param === "wind" ? "Air" : "Ice";
+                if(param === "wind" ){
+                    selectNode.value = "Air";
+                    d3.select("#overlay-select").node().value = "WindSpeed";
+                }else if(param === "ocean" ){
+                    selectNode.value = "Ocean";
+                    d3.select("#overlay-select-ocean").node().value = "Currents";
+                }else if(param === "ice" ){
+                    selectNode.value = "Ice";
+                    d3.select("#overlay-select-ice").node().value = "IceCurrents";
+                }
             }
         });
 
@@ -1269,7 +1279,7 @@
                     configuration.save({overlayType: "off"});
                     break;
                 case "Currents":
-                    configuration.save({overlayType: "default"});
+                    configuration.save({param: "ocean",overlayType: "default"});
                     break;
                 case "SeaSurfaceTemperature":
                     configuration.save({overlayType: "prog_temperature"});
@@ -1314,7 +1324,7 @@
                     configuration.save({overlayType: "off"});
                     break;
                 case "IceCurrents":
-                    configuration.save({overlayType: "default"});
+                    configuration.save({param: "ice",overlayType: "default"});
                     break;
                 case "IceCoverage":
                     configuration.save({overlayType: "ice_coverage"});
