@@ -50,7 +50,7 @@ PROG_VARIABLE_SPECS: List[Dict] = [
         "parameterCategoryName": "Ice",
         "parameterNumber": 2,
         "parameterNumberName": "Ice_surface_temperature",
-        "parameterUnit": "K",
+        "parameterUnit": "degC",
         "surface1Type": 1,
         "surface1TypeName": "Ground or water surface",
         "surface1Value": 0,
