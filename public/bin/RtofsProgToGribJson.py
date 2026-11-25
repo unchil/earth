@@ -12,7 +12,14 @@ import pandas as pd
 from scipy.interpolate import LinearNDInterpolator
 from scipy.spatial import Delaunay
 import xarray as xr
+import geopandas as gpd
+from shapely.ops import polygonize
+import topojson as tp
+import warnings
 
+
+DEFAULT_TOPO_PATH = "/Library/WebServer/Documents/data/earth-topo.json"
+DEFAULT_LAND_BUFFER_METERS = -5000.0
 DEFAULT_DOWNLOAD_DIR = "/Library/WebServer/Documents/data/download"
 DEFAULT_OUTPUT_DIR = "/Library/WebServer/Documents/data/rtofs"
 DEFAULT_SHARED_GRID_PATH = "/Library/WebServer/Documents/data/rtofs/shared_grid_prog.pkl"
@@ -146,7 +153,112 @@ def get_ref_time(first_prog_file: Path, first_forecast_hour: int) -> str:
     return ref_time
 
 
+def build_land_mask_gdf(
+        topo_path: str = DEFAULT_TOPO_PATH,
+        object_name: str = "coastline_50m",
+        buffer_meters: float = DEFAULT_LAND_BUFFER_METERS,
+) -> gpd.GeoDataFrame:
 
+    warnings.filterwarnings("ignore", message=".*GeoSeries\\.notna.*", category=UserWarning)
+
+    """earth-topo.json의 해안선으로부터 육지(EPSG:4326) GeoDataFrame 생성"""
+    with open(topo_path, "r", encoding="utf-8") as f:
+        topo_data = json.load(f)
+
+    gdf_coast = tp.Topology(topo_data, object_name=object_name).to_gdf()
+
+    # LineString 해안선을 Polygon으로 변환 후 미터 단위 좌표계(ESRI:54035)에서 버퍼 적용
+    land_polygons = list(polygonize(gdf_coast.geometry.union_all()))
+    land_gdf = gpd.GeoDataFrame(geometry=land_polygons, crs="EPSG:4326")
+
+    land_proj = land_gdf.to_crs("ESRI:54035")
+    land_proj["geometry"] = land_proj.geometry.buffer(buffer_meters)
+
+    land_gdf_4326 = land_proj.to_crs("EPSG:4326")
+
+    mask = land_gdf_4326.geometry.notna() & (~land_gdf_4326.geometry.is_empty)
+    return land_gdf_4326.loc[mask].copy()
+
+
+
+def build_shared_triangulation(
+        first_prog_file: Path,
+        topo_path: str = DEFAULT_TOPO_PATH,
+        object_name: str = "coastline_50m",
+        buffer_meters: float = DEFAULT_LAND_BUFFER_METERS,
+) -> Dict:
+    print(f"[공통 Delaunay 생성 기준 파일] {first_prog_file}")
+    t0 = time.time()
+
+    with xr.open_dataset(first_prog_file, chunks={"MT": 1}) as ds:
+        mt_array = pd.to_datetime(ds["MT"].compute().values)
+
+        if mt_array.size == 0:
+            raise ValueError(f"기준 prog 파일의 MT가 비어 있습니다: {first_prog_file}")
+
+        lat_2d = ds["Latitude"].compute().values.flatten()
+        lon_2d = normalize_longitude(ds)
+
+        sample = get_variable_2d(
+            ds=ds,
+            variable_name="u_velocity",
+            mt_idx=0,
+            has_layer=True,
+        )
+
+        valid_mask = ~np.isnan(sample) & ~np.isnan(lat_2d) & ~np.isnan(lon_2d)
+        valid_indices = np.flatnonzero(valid_mask)
+        valid_lons = lon_2d[valid_indices]
+        valid_lats = lat_2d[valid_indices]
+
+        if len(valid_indices) == 0:
+            raise ValueError("공통 Delaunay 생성을 위한 유효 points가 없습니다.")
+
+        # 육지(Land) 영역에 포함된 포인트 판별 및 제외(스킵)
+        land_gdf_4326 = build_land_mask_gdf(
+            topo_path=topo_path,
+            object_name=object_name,
+            buffer_meters=buffer_meters,
+        )
+
+        points_gdf = gpd.GeoDataFrame(
+            geometry=gpd.points_from_xy(valid_lons, valid_lats),
+            crs="EPSG:4326",
+        )
+        points_in_land = gpd.sjoin(
+            points_gdf, land_gdf_4326, how="inner", predicate="within"
+        )
+
+        land_pos_in_valid = points_in_land.index.unique().to_numpy()
+        if len(land_pos_in_valid) > 0:
+            land_global_indices = valid_indices[land_pos_in_valid]
+            valid_mask[land_global_indices] = False
+            print(
+                f"[육지 포인트 스킵] land 영역 포함 {len(land_pos_in_valid):,}개"
+                " 제외"
+            )
+
+        points = np.column_stack((lon_2d[valid_mask], lat_2d[valid_mask]))
+
+        if len(points) == 0:
+            raise ValueError("육지 제외 후 Delaunay 생성을 위한 points가 없습니다.")
+
+        print(f"[공통 Delaunay] points={len(points):,} 생성 중...")
+        tri = Delaunay(points)
+
+    elapsed = time.time() - t0
+    print(f"[공통 Delaunay 완료] 소요 시간: {elapsed:.2f}초")
+
+    return {
+        "tri": tri,
+        "valid_mask": valid_mask,
+        "points": points,
+        "total_cells": int(valid_mask.size),
+        "source_file": str(first_prog_file)
+    }
+
+
+"""
 def build_shared_triangulation(first_prog_file: Path) -> Dict:
     print(f"[공통 Delaunay 생성 기준 파일] {first_prog_file}")
     t0 = time.time()
@@ -187,7 +299,7 @@ def build_shared_triangulation(first_prog_file: Path) -> Dict:
         "total_cells": int(valid_mask.size),
         "source_file": str(first_prog_file)
     }
-
+"""
 
 def save_shared_grid(shared_grid: Dict, shared_grid_path: str) -> Path:
     """shared_grid를 파일로 저장"""
@@ -247,7 +359,7 @@ def get_or_create_shared_grid(
     if grid_file.exists() and not rebuild:
         return load_shared_grid(shared_grid_path)
 
-    shared_grid = build_shared_triangulation(first_prog_file)
+    shared_grid = build_shared_triangulation(first_prog_file, )
     save_shared_grid(shared_grid, shared_grid_path)
     return shared_grid
 
