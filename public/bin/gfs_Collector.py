@@ -167,7 +167,7 @@ def main():
     parser.add_argument("--maxH", type=int, default=72, help="Maximum forecast duration (default: 72)")
     parser.add_argument("--retry", type=int, default=3, help="Maximum number of retries (default: 3)")
     parser.add_argument("--useDb", type=str, default="Y", choices=["Y", "N"], help="Whether a database insert occurred (default: Y)")
-    parser.add_argument("--type", type=str, default="decoding", choices=["all", "download", "decoding"], help="Processing Option (default: decoding)")
+    parser.add_argument("--type", type=str, default="all", choices=["all", "download", "decoding"], help="Processing Option (default: all)")
 
     args = parser.parse_args()
 

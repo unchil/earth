@@ -733,9 +733,6 @@
         d3.select("#toggle-zone").text("⇄ " + (isLocal ? "UTC" : "Local"));
     }
 
-
-
-
     function showGridDetails(grids) {
         showDate(grids);
         var description = "", center = "";
@@ -774,7 +771,6 @@
             showWindAtLocation(wind, product);
         });
     }
-
 
     function showOverlayValueAtLocation(value, product) {
         var unitToggle = createUnitToggle("#location-value-units", product), units = unitToggle.value();
@@ -855,13 +851,6 @@
         });
     }
 
-    function reportSponsorClick(type) {
-        if (ga) {
-            ga("send", "event", "sponsor", type);
-        }
-    }
-
-
     function init() {
         report.status("Initializing...");
 
@@ -904,7 +893,6 @@
         meshAgent.listenTo(configuration, "change:topology", function(context, attr) {
             meshAgent.submit(buildMesh, attr);
         });
-
         globeAgent.listenTo(configuration, "change:projection", function(source, attr) {
             globeAgent.submit(buildGlobe, attr);
         });
@@ -913,9 +901,11 @@
             var changed = _.keys(configuration.changedAttributes()), rebuildRequired = false;
 
             // Build a new grid if any layer-related attributes have changed.
+
             if (_.intersection(changed, ["date", "hour", "param", "surface", "level"]).length > 0) {
                 rebuildRequired = true;
             }
+
             // Build a new grid if the new overlay type is different from the current one.
             var overlayType = configuration.get("overlayType") || "default";
             if (_.indexOf(changed, "overlayType") >= 0 && overlayType !== "off") {
@@ -934,12 +924,15 @@
                 gridAgent.submit(buildGrids);
             }
         });
+
         gridAgent.on("submit", function() {
             showGridDetails(null);
         });
+
         gridAgent.on("update", function(grids) {
             showGridDetails(grids);
         });
+
         d3.select("#toggle-zone").on("click", function() {
             d3.select("#data-date").classed("local", !d3.select("#data-date").classed("local"));
             showDate(gridAgent.cancel.requested ? null : gridAgent.value());
@@ -948,15 +941,18 @@
         function startRendering() {
             rendererAgent.submit(buildRenderer, meshAgent.value(), globeAgent.value());
         }
+
         rendererAgent.listenTo(meshAgent, "update", startRendering);
         rendererAgent.listenTo(globeAgent, "update", startRendering);
 
         function startInterpolation() {
             fieldAgent.submit(interpolateField, globeAgent.value(), gridAgent.value());
         }
+
         function cancelInterpolation() {
             fieldAgent.cancel();
         }
+
         fieldAgent.listenTo(gridAgent, "update", startInterpolation);
         fieldAgent.listenTo(rendererAgent, "render", startInterpolation);
         fieldAgent.listenTo(rendererAgent, "start", cancelInterpolation);
@@ -998,7 +994,6 @@
             d3.select("#nav-forward").attr("title", "+3 Hours");
             d3.select("#nav-forward-more").attr("title", "+1 Day");
         });
-
 
         d3.select("#mode-select").on("change", function(event) {
             // 1. 새로 선택된 값 가져오기
@@ -1067,7 +1062,6 @@
             d3.select("#overlay-air_density").classed("disabled", s === "surface");
             d3.select("#overlay-wind_power_density").classed("disabled", s === "surface");
         });
-
          */
 
         // Add event handlers for the time navigation buttons.
@@ -1091,7 +1085,6 @@
             var parts = id.split("-");
             configuration.save({param: "wind", surface: parts[0], level: parts[1]});
         });
-
         configuration.on("change", function(model) {
             var surface = model.get("surface");
             var level = model.get("level");
@@ -1107,6 +1100,7 @@
                 }
             }
         });
+
         // Overlay select element event handler and configuration listener
         d3.select("#overlay-select").on("change", function() {
             var value = this.value;
@@ -1125,7 +1119,6 @@
                     break;
             }
         });
-
         configuration.on("change:overlayType", function(model, overlayType) {
             var selectNode = d3.select("#overlay-select").node();
             if (!selectNode) return;
@@ -1151,7 +1144,6 @@
             }
         });
 
-
         d3.select("#animate-select").on("change", function() {
             var value = this.value;
             switch (value) {
@@ -1163,7 +1155,6 @@
                     break;
             }
         });
-
         configuration.on("change", function() {
             var selectNode = d3.select("#animate-select").node();
             if (!selectNode) return;
@@ -1177,7 +1168,6 @@
                 }
             }
         });
-
 
         d3.select("#overlay-select-ocean").on("change", function() {
             var value = this.value;
@@ -1196,7 +1186,6 @@
                     break;
             }
         });
-
         configuration.on("change;overlayType", function(overlayType) {
             var selectNode = d3.select("#overlay-select-ocean").node();
             if (!selectNode) return;
@@ -1222,8 +1211,6 @@
             }
         });
 
-
-
         d3.select("#overlay-select-ice").on("change", function() {
             var value = this.value;
             switch (value) {
@@ -1244,7 +1231,6 @@
                     break;
             }
         });
-
         configuration.on("change;overlayType", function(overlayType) {
             var selectNode = d3.select("#overlay-select-ice").node();
             if (!selectNode) return;
@@ -1300,7 +1286,6 @@
             var projKey = projectionMap[value] || value;
             configuration.save({projection: projKey, orientation: ""});
         });
-
         configuration.on("change:projection", function(model, proj) {
             var selectNode = d3.select("#projection-select").node();
             if (!selectNode) return;
@@ -1314,13 +1299,11 @@
             }
         });
 
-
         // When touch device changes between portrait and landscape, rebuild globe using the new view size.
         d3.select(window).on("orientationchange", function() {
             view = µ.view();
             globeAgent.submit(buildGlobe, configuration.get("projection"));
         });
-
 
         // 창 크기 변경(resize) 시 지도 및 Canvas 크기 자동 재설정
         d3.select(window).on("resize", _.debounce(function() {

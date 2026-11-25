@@ -166,6 +166,7 @@ var products = function() {
                 });
             }
         } ,
+
         "temperature": {
             matches: _.matches({param: "wind", overlayType: "temperature"}),
             create: function(attr) {
@@ -289,8 +290,7 @@ var products = function() {
                 });
             }
         },
-*/
-        /*
+
 
         "direction_of_wind_wave": {
             matches: _.matches({param: "wind", overlayType: "direction_of_wind_wave"}),
@@ -542,7 +542,6 @@ var products = function() {
 
          */
 
-
         "prog_currents": {
             matches: _.matches({param: "ocean"}),
             create: function(attr) {
@@ -634,6 +633,7 @@ var products = function() {
                 });
             }
         },
+
         "prog_salinity": {
             matches: _.matches({param: "ocean", overlayType: "prog_salinity"}),
             create: function(attr) {
@@ -722,6 +722,7 @@ var products = function() {
                 });
             }
         },
+
         "ice_temperature": {
             matches: _.matches({param: "ice", overlayType: "ice_temperature"}),
             create: function(attr) {
@@ -765,6 +766,7 @@ var products = function() {
                 });
             }
         },
+
         "ice_coverage": {
             matches: _.matches({param: "ice", overlayType: "ice_coverage"}),
             create: function(attr) {
@@ -805,6 +807,7 @@ var products = function() {
                 });
             }
         },
+
         "ice_thickness": {
             matches: _.matches({param: "ice", overlayType: "ice_thickness"}),
             create: function(attr) {
