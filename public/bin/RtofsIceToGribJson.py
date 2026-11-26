@@ -20,7 +20,7 @@ import topojson as tp
 import warnings
 
 DEFAULT_TOPO_PATH = "/Library/WebServer/Documents/data/earth-topo.json"
-DEFAULT_LAND_BUFFER_METERS = -5000.0
+DEFAULT_LAND_BUFFER_METERS = -1000.0
 DEFAULT_DOWNLOAD_DIR = "/Library/WebServer/Documents/data/download"
 DEFAULT_OUTPUT_DIR = "/Library/WebServer/Documents/data/rtofs"
 DEFAULT_SHARED_GRID_PATH = "/Library/WebServer/Documents/data/rtofs/shared_grid_ice.pkl"
@@ -133,9 +133,10 @@ def get_first_ice_file(ice_by_hour: Dict[int, Path]) -> Tuple[int, Path]:
 
 
 def normalize_longitude(ds: xr.Dataset) -> np.ndarray:
-    lon = ds["Longitude"].compute()
-    lon = xr.where(lon >= 360, lon % 360, lon)
-    return lon.values.flatten()
+    lon_raw = ds["Longitude"].compute()
+    lon_360 = np.mod(lon_raw, 360.0)
+ #   lon_180 = ((lon_360 + 180.0) % 360.0) - 180.0
+    return lon_360.values.flatten()
 
 
 def get_variable_2d(
@@ -174,11 +175,12 @@ def build_land_mask_gdf(
 
     land_proj = land_gdf.to_crs("ESRI:54035")
     land_proj["geometry"] = land_proj.geometry.buffer(buffer_meters)
-
     land_gdf_4326 = land_proj.to_crs("EPSG:4326")
 
-    mask = land_gdf_4326.geometry.notna() & (~land_gdf_4326.geometry.is_empty)
-    return land_gdf_4326.loc[mask].copy()
+    valid_geom_mask = land_gdf_4326.geometry.notna() & (~land_gdf_4326.geometry.is_empty)
+    land_gdf_4326 = land_gdf_4326.loc[valid_geom_mask, ["geometry"]].copy()
+    return land_gdf_4326
+
 
 
 def build_shared_triangulation(
@@ -191,52 +193,93 @@ def build_shared_triangulation(
     t0 = time.time()
 
     with xr.open_dataset(first_ice_file, chunks={"MT": 1}) as ds:
-        lat_2d = ds["Latitude"].compute().values.flatten()
-        lon_2d = normalize_longitude(ds)
+        # PointValidityCheck 방식의 좌표 정규화: raw -> [0, 360) -> [-180, 180]
+        lon_raw = ds["Longitude"].compute().values.flatten()
+        lat_raw = ds["Latitude"].compute().values.flatten()
+        n_cells = lon_raw.size
 
-        sample = get_variable_2d(
-            ds=ds,
-            variable_name="ice_coverage",
-            mt_idx=0,
-            has_layer=True,
-        )
+        lon_360 = np.mod(lon_raw, 360.0)
+        lon_180 = ((lon_360 + 180.0) % 360.0) - 180.0
 
-        valid_mask = ~np.isnan(sample) & ~np.isnan(lat_2d) & ~np.isnan(lon_2d)
+        # PROG_VARIABLE_SPECS 변수 중 하나라도 유효(non-NaN)한 격자 마스크 생성
+        combined_valid_mask = np.zeros(n_cells, dtype=bool)
+        checked_vars: List[str] = []
+
+        for spec in PROG_VARIABLE_SPECS:
+            var_name = spec["name"]
+            if var_name not in ds:
+                print(f"[경고] '{var_name}' 변수가 파일에 없어 제외합니다.")
+                continue
+
+            has_layer = bool(spec.get("has_layer", False))
+            try:
+                da = ds[var_name]
+                if "MT" in da.dims:
+                    da = da.isel(MT=0)
+                if has_layer and "Layer" in da.dims:
+                    da = da.isel(Layer=0)
+                val_1d = da.squeeze().compute().values.flatten()
+            except Exception as exc:
+                print(f"[경고] '{var_name}' 변수 로드 실패로 제외합니다: {exc}")
+                continue
+
+            if val_1d.size != n_cells:
+                print(
+                    f"[경고] '{var_name}' 원소 수({val_1d.size})가 격자 수({n_cells})와 달라 제외합니다."
+                )
+                continue
+
+            combined_valid_mask |= ~np.isnan(val_1d)
+            checked_vars.append(var_name)
+
+        print(f"[유효 마스크 생성 완료] 대상 변수({len(checked_vars)}개): {checked_vars}")
+
+        valid_mask = combined_valid_mask & ~np.isnan(lat_raw) & ~np.isnan(lon_360)
         valid_indices = np.flatnonzero(valid_mask)
-        valid_lons = lon_2d[valid_indices]
-        valid_lats = lat_2d[valid_indices]
 
         if len(valid_indices) == 0:
             raise ValueError("공통 Delaunay 생성을 위한 유효 points가 없습니다.")
 
-        # 육지(Land) 영역에 포함된 포인트 판별 및 제외(스킵)
+        # 육지(Land) 폴리곤 생성 및 [-180, 180] 경도 기준 육지 내부 격자 판별
         land_gdf_4326 = build_land_mask_gdf(
             topo_path=topo_path,
             object_name=object_name,
             buffer_meters=buffer_meters,
         )
 
-        points_gdf = gpd.GeoDataFrame(
-            geometry=gpd.points_from_xy(valid_lons, valid_lats),
+        valid_points_gdf = gpd.GeoDataFrame(
+            {
+                "valid_pos": np.arange(len(valid_indices)),
+                "global_idx": valid_indices,
+            },
+            geometry=gpd.points_from_xy(lon_180[valid_indices], lat_raw[valid_indices]),
             crs="EPSG:4326",
         )
+
         points_in_land = gpd.sjoin(
-            points_gdf, land_gdf_4326, how="inner", predicate="within"
+            valid_points_gdf[["valid_pos", "geometry"]],
+            land_gdf_4326,
+            how="inner",
+            predicate="within",
         )
+        land_valid_pos = set(points_in_land["valid_pos"].unique())
 
-        land_pos_in_valid = points_in_land.index.unique().to_numpy()
-        if len(land_pos_in_valid) > 0:
-            land_global_indices = valid_indices[land_pos_in_valid]
+        # 육지가 아닌 격자 = 바다 영역 데이터 추출
+        ocean_mask = np.ones(len(valid_indices), dtype=bool)
+        if land_valid_pos:
+            land_pos_arr = np.fromiter(land_valid_pos, dtype=int)
+            ocean_mask[land_pos_arr] = False
+            land_global_indices = valid_indices[land_pos_arr]
             valid_mask[land_global_indices] = False
-            print(
-                f"[육지 포인트 스킵] land 영역 포함 {len(land_pos_in_valid):,}개"
-                " 제외"
-            )
+            print(f"[육지 포인트 제외] land 영역 포함 {len(land_pos_arr):,}개 제외")
 
-        points = np.column_stack((lon_2d[valid_mask], lat_2d[valid_mask]))
+        ocean_global_indices = valid_indices[ocean_mask]
+        if len(ocean_global_indices) == 0:
+            raise ValueError("바다 영역에 포함된 유효 points가 없습니다.")
 
-        if len(points) == 0:
-            raise ValueError("육지 제외 후 Delaunay 생성을 위한 points가 없습니다.")
+        # 보간 그리드(TARGET_LONS: 0~360) 및 normalize_longitude와 정합성을 맞추기 위해 lon_360 사용
+        points = np.column_stack((lon_360[ocean_global_indices], lat_raw[ocean_global_indices]))
+        print(f"[바다 영역 유효 격자 추출 완료] points={len(points):,}개")
 
         print(f"[공통 Delaunay] points={len(points):,} 생성 중...")
         tri = Delaunay(points)
@@ -251,44 +294,6 @@ def build_shared_triangulation(
         "total_cells": int(valid_mask.size),
         "source_file": str(first_ice_file),
     }
-
-"""
-def build_shared_triangulation(first_ice_file: Path) -> Dict:
-    print(f"[공통 Delaunay 생성 기준 파일] {first_ice_file}")
-    t0 = time.time()
-
-    with xr.open_dataset(first_ice_file, chunks={"MT": 1}) as ds:
-
-        lat_2d = ds["Latitude"].compute().values.flatten()
-        lon_2d = normalize_longitude(ds)
-
-        sample = get_variable_2d(
-            ds=ds,
-            variable_name="ice_coverage",
-            mt_idx=0,
-            has_layer=True,
-        )
-
-        valid_mask = ~np.isnan(sample) & ~np.isnan(lat_2d) & ~np.isnan(lon_2d)
-        points = np.column_stack((lon_2d[valid_mask], lat_2d[valid_mask]))
-
-        if len(points) == 0:
-            raise ValueError("공통 Delaunay 생성을 위한 유효 points가 없습니다.")
-
-        print(f"[공통 Delaunay] points={len(points):,} 생성 중...")
-        tri = Delaunay(points)
-
-    elapsed = time.time() - t0
-    print(f"[공통 Delaunay 완료] 소요 시간: {elapsed:.2f}초")
-
-    return {
-        "tri": tri,
-        "valid_mask": valid_mask,
-        "points": points,
-        "total_cells": int(valid_mask.size),
-        "source_file": str(first_ice_file)
-    }
-"""
 
 def save_shared_grid(shared_grid: Dict, shared_grid_path: str) -> Path:
     """shared_grid를 파일로 저장"""
