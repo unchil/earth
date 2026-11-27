@@ -107,9 +107,9 @@ interp_u = LinearNDInterpolator(points, u_vals_sample)
 
 ---
 
-##  데이터 수집 및 파이프라인 자동화 스크립트 (`public/bin/`)
+##  데이터 수집 자동화 스크립트 (`public/bin/`)
 
-프로젝트 내 `public/bin/` 디렉토리에는 NOAA NOMADS 서버로부터 대기(GFS) 및 해양(RTOFS) 데이터를 수집, 변환, 병합하는 자동화 파이프라인 스크립트가 포함되어 있습니다.
+프로젝트 내 `public/bin/` 디렉토리에는 NOAA NOMADS 서버로부터 대기(GFS) 및 해양(RTOFS) 데이터를 수집, 변환하는 스크립트가 포함되어 있습니다.
 
 ###  주요 스크립트 구성
 
@@ -117,21 +117,18 @@ interp_u = LinearNDInterpolator(points, u_vals_sample)
 |:---|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `gfs_Collector.py` | **GFS 대기 데이터 자동 수집 및 디코딩**<br>- NOMADS 서버에서 최신 GFS 사이클 및 변수(`UGRD`, `VGRD`, `TMP`, `RH`)를 자동 다운로드<br>- SQLite 데이터베이스 저장 옵션(`--useDb Y`)  지원하며, 결측 시 이전 날짜 데이터 재시도 로직 포함 |
 | `RtofsCollector.py` | **RTOFS 해양 데이터 자동 수집**<br>- NOAA NOMADS 서버의 최신 `rtofs.YYYYMMDD` 폴더 탐색<br>- 최신 표층 해류 NetCDF 파일(`rtofs_glo_uv_*_hcasts.nc.gz`) 자동 다운로드 및 압축 해제 처리                                           |
-| `RtofsInterpToGribJson.py` | **RTOFS NetCDF 보간 및 GRIB JSON 변환**<br>- 불규칙 곡선 좌표계를 정규 격자로 보간 (`LinearNDInterpolator`)<br>- `xarray` Dask 지연 로딩 기반 메모리 최적화 및 `catalog.json` / SQLite DB 저장 지원                             |
-| `rtofs_pipeline.py` | **RTOFS 데이터 수집-변환 파이프라인 CLI**<br>- 수집(`RtofsCollector.py`)  탐색, 보간 및 JSON 변환(`RtofsInterpToGribJson.py`) 전 과정을 일괄 실행하는 CLI 파이프라인                                                          |
-| `MergeGribJson.py` | **GRIB2 해류 데이터 병합**<br>- 지정된 디렉토리의 `.grb2` 파일들로부터 U/V 성분 해류 데이터를 추출하고, 단일 JSON 파일로 병합 및 자동 정렬                                                                                             |
+| `RtofsIceToGribJson.py` | **RTOFS NetCDF ice 보간 및 GRIB JSON 변환**<br>- 불규칙 곡선 좌표계를 정규 격자로 보간 (`LinearNDInterpolator`)<br>- `xarray` Dask 지연 로딩 기반 메모리 최적화 및 `catalog.json` / SQLite DB 저장 지원                             |
+| `RtofsProgToGribJson.py` | **RTOFS NetCDF prog 보간 및 GRIB JSON 변환**<br>- 불규칙 곡선 좌표계를 정규 격자로 보간 (`LinearNDInterpolator`)<br>- `xarray` Dask 지연 로딩 기반 메모리 최적화 및 `catalog.json` / SQLite DB 저장 지원                                                                     |
+| `RtofsNetCDF_To_GribJson.py` |  **RTOFS NetCDF prog, ice 보간 및 GRIB JSON 변환**<br>- 불규칙 곡선 좌표계를 정규 격자로 보간 (`LinearNDInterpolator`)<br>- `xarray` Dask 지연 로딩 기반 메모리 최적화 및 `catalog.json` / SQLite DB 저장 지원                                                                                   |
 
-###  파이프라인 실행 예시
+### 실행 예시
 
 1. GFS 대기 데이터 수집 (최대 예보시간 72시간, DB 삽입 사용)
 ```python
    python3 public/bin/gfs_Collector.py --maxH 72 --retry 3 --useDb Y
 ```   
-2. RTOFS 해양 수집-변환 일괄 파이프라인 실행
+  
+3. RTOFS NetCDF 해류 파일 수집
 ```python
-   python3 public/bin/rtofs_pipeline.py --mt_range 0 8 --useDb N --output_dir ./output
-```    
-3. GRIB2 해류 파일 병합
-```python
-   python3 public/bin/MergeGribJson.py ./download ./output --output_filename merged_currents.json
+   python3 public/bin/RtofsCollector.py 
 ```   
