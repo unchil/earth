@@ -179,6 +179,27 @@
             if (cancel.requested) return null;
             log.time("building meshes");
             var o = topo.objects;
+            var coastLo = topojson.feature(topo, o.land1);
+            var coastHi = topojson.feature(topo, o.land2);
+            var lakesLo = topojson.feature(topo, o.lakes_110m);
+            var lakesHi = topojson.feature(topo, o.lakes_50m);
+            log.timeEnd("building meshes");
+            return {
+                coastLo: coastLo,
+                coastHi: coastHi,
+                lakesLo: lakesLo,
+                lakesHi: lakesHi
+            };
+        });
+    }
+    /*
+    function buildMesh(resource) {
+        var cancel = this.cancel;
+        report.status("Downloading...");
+        return µ.loadJson(resource).then(function(topo) {
+            if (cancel.requested) return null;
+            log.time("building meshes");
+            var o = topo.objects;
             var coastLo = topojson.feature(topo, µ.isMobile() ? o.coastline_tiny : o.coastline_110m);
             var coastHi = topojson.feature(topo, µ.isMobile() ? o.coastline_110m : o.coastline_50m);
             var lakesLo = topojson.feature(topo, µ.isMobile() ? o.lakes_tiny : o.lakes_110m);
@@ -192,6 +213,8 @@
             };
         });
     }
+
+     */
 
     function buildGlobe(projectionName) {
         var builder = globes.get(projectionName);
