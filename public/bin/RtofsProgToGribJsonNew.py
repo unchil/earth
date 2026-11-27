@@ -159,7 +159,7 @@ def load_land_polygons(
         topo_path: str = DEFAULT_TOPO_PATH,
         polygon_layers: Tuple[str, ...] = POLYGON_LAYERS,
         fallback_coast_layer: str = FALLBACK_COAST_LAYER,
-        buffer_meters: float = 0.0,
+        buffer_meters: float = DEFAULT_LAND_BUFFER_METERS,
 ) -> gpd.GeoDataFrame:
     """land / countries 폴리곤 레이어를 우선 사용하고, 없으면 해안선 polygonize로 대체합니다."""
     warnings.filterwarnings("ignore", message=".*GeoSeries\\.notna.*", category=UserWarning)
@@ -435,7 +435,7 @@ def build_shared_triangulation(
         topo_path=topo_path,
         polygon_layers=POLYGON_LAYERS,
         fallback_coast_layer=FALLBACK_COAST_LAYER,
-        buffer_meters=0.0,
+        buffer_meters=buffer_meters,
     )
     validate_land_gdf(land_gdf_raw)
 
@@ -561,6 +561,7 @@ def save_shared_grid(shared_grid: Dict, shared_grid_path: str) -> Path:
 def ensure_ocean_grid_mask(
         shared_grid: Dict,
         topo_path: str = DEFAULT_TOPO_PATH,
+        buffer_meters: float = DEFAULT_LAND_BUFFER_METERS
 ) -> np.ndarray:
     """shared_grid에 ocean_grid_mask가 있으면 반환하고, 없으면 원본 폴리곤으로 생성합니다."""
     mask = shared_grid.get("ocean_grid_mask")
@@ -575,7 +576,7 @@ def ensure_ocean_grid_mask(
         topo_path=topo_path,
         polygon_layers=POLYGON_LAYERS,
         fallback_coast_layer=FALLBACK_COAST_LAYER,
-        buffer_meters=0.0,
+        buffer_meters=buffer_meters,
     )
     arr = build_target_ocean_grid_mask(land_gdf_raw)
     shared_grid["ocean_grid_mask"] = arr
@@ -585,6 +586,7 @@ def ensure_ocean_grid_mask(
 def load_shared_grid(
         shared_grid_path: str,
         topo_path: str = DEFAULT_TOPO_PATH,
+        buffer_meters: float = DEFAULT_LAND_BUFFER_METERS,
 ) -> Dict:
     grid_file = Path(shared_grid_path)
     if not grid_file.exists():
@@ -612,7 +614,7 @@ def load_shared_grid(
 
     shared_grid["valid_mask"] = valid_mask
     shared_grid["points"] = points
-    ensure_ocean_grid_mask(shared_grid, topo_path=topo_path)
+    ensure_ocean_grid_mask(shared_grid, topo_path=topo_path, buffer_meters=buffer_meters)
 
     print(f"[shared_grid 로드 완료] {grid_file} (points={len(points)})")
     return shared_grid
@@ -628,7 +630,7 @@ def get_or_create_shared_grid(
 ) -> Dict:
     grid_file = Path(shared_grid_path)
     if grid_file.exists() and not rebuild:
-        return load_shared_grid(shared_grid_path, topo_path=topo_path)
+        return load_shared_grid(shared_grid_path, topo_path=topo_path, buffer_meters=buffer_meters)
 
     shared_grid = build_shared_triangulation(
         first_nc_file=first_nc_file,
@@ -1000,7 +1002,7 @@ def main() -> None:
         "--buffer_meters",
         type=float,
         default=DEFAULT_LAND_BUFFER_METERS,
-        help="Land polygon buffer in meters (default: -1000.0)",
+        help="Land polygon buffer in meters (default: -5000.0)",
     )
     parser.add_argument(
         "--rebuild_shared_grid",
