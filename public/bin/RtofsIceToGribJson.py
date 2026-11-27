@@ -42,11 +42,6 @@ current_data = []
         "surface1TypeName": "Ground or water surface",
         "surface1Value": 0,
     },
-"""
-
-PROG_VARIABLE_SPECS: List[Dict] = [
-
-
     {
         "name": "ice_temperature",
         "output_type": "ice_temperature",
@@ -60,6 +55,10 @@ PROG_VARIABLE_SPECS: List[Dict] = [
         "surface1TypeName": "Ground or water surface",
         "surface1Value": 0,
     },
+"""
+
+PROG_VARIABLE_SPECS: List[Dict] = [
+
     {
         "name": "ice_thickness",
         "output_type": "ice_thickness",
