@@ -1,34 +1,35 @@
-from pathlib import Path
-import time
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime, timedelta, timezone
 import argparse
 import gc
 import json
+from pathlib import Path
 import pickle
 import re
 import sqlite3
+import time
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-from scipy.interpolate import LinearNDInterpolator
-from scipy.spatial import Delaunay
+from scipy.spatial import cKDTree
 import xarray as xr
-from datetime import datetime, timezone, timedelta
-from datetime import time as dt_time
 
 DEFAULT_DOWNLOAD_DIR = "/Library/WebServer/Documents/data/download"
 DEFAULT_OUTPUT_DIR = "/Library/WebServer/Documents/data/rtofs"
 DEFAULT_SHARED_GRID_PATH = "/Library/WebServer/Documents/data/rtofs/shared_grid_ice.pkl"
+DEFAULT_DB_PATH = "/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite"
+DEFAULT_MAX_DIST_DEG = 2.0
 
 TARGET_LONS = np.arange(0, 360, 1.0)
 TARGET_LATS = np.arange(90, -91, -1.0)
 GRID_LON, GRID_LAT = np.meshgrid(TARGET_LONS, TARGET_LATS)
+GRID_COORDS = np.column_stack((GRID_LON.ravel(), GRID_LAT.ravel()))
 NY, NX = GRID_LON.shape
 
-batch_data = []
-current_data = []
+batch_data: List[Tuple] = []
+current_data: List[Tuple] = []
 
-
-"""
+ICE_VARIABLE_SPECS: List[Dict] = [
     {
         "name": "ice_coverage",
         "output_type": "ice_coverage",
@@ -55,10 +56,6 @@ current_data = []
         "surface1TypeName": "Ground or water surface",
         "surface1Value": 0,
     },
-"""
-
-PROG_VARIABLE_SPECS: List[Dict] = [
-
     {
         "name": "ice_thickness",
         "output_type": "ice_thickness",
@@ -97,7 +94,7 @@ PROG_VARIABLE_SPECS: List[Dict] = [
         "surface1Type": 1,
         "surface1TypeName": "Ground or water surface",
         "surface1Value": 0,
-    }
+    },
 ]
 
 
@@ -132,8 +129,8 @@ def get_first_ice_file(ice_by_hour: Dict[int, Path]) -> Tuple[int, Path]:
 
 def normalize_longitude(ds: xr.Dataset) -> np.ndarray:
     lon = ds["Longitude"].compute()
-    lon = xr.where(lon >= 360, lon % 360, lon)
-    return lon.values.flatten()
+    lon_360 = np.mod(lon.values.flatten(), 360.0)
+    return lon_360
 
 
 def get_variable_2d(
@@ -145,51 +142,61 @@ def get_variable_2d(
     if variable_name not in ds:
         raise KeyError(f"{variable_name} 변수가 파일에 없습니다.")
 
-    if has_layer and "Layer" in ds[variable_name].dims:
-        return ds[variable_name].isel(MT=mt_idx, Layer=0).compute().values.flatten()
+    da = ds[variable_name]
+    if "MT" in da.dims:
+        da = da.isel(MT=mt_idx)
+    if has_layer and "Layer" in da.dims:
+        da = da.isel(Layer=0)
 
-    return ds[variable_name].isel(MT=mt_idx).compute().values.flatten()
+    return da.squeeze().compute().values.flatten()
 
 
-def build_shared_triangulation(first_ice_file: Path) -> Dict:
-    print(f"[공통 Delaunay 생성 기준 파일] {first_ice_file}")
+def build_shared_grid(first_ice_file: Path) -> Dict:
+    """기준 ice.nc 파일로부터 유효 격자 마스크, 좌표, cKDTree를 생성합니다."""
+    print(f"[공통 해빙 격자 생성 기준 파일] {first_ice_file}")
     t0 = time.time()
 
     with xr.open_dataset(first_ice_file, chunks={"MT": 1}) as ds:
+        lat_1d = ds["Latitude"].compute().values.flatten()
+        lon_1d = normalize_longitude(ds)
+        n_cells = lat_1d.size
 
-        lat_2d = ds["Latitude"].compute().values.flatten()
-        lon_2d = normalize_longitude(ds)
+        combined_valid = np.zeros(n_cells, dtype=bool)
+        if "ice_coverage" in ds:
+            cov_1d = get_variable_2d(ds, "ice_coverage", mt_idx=0, has_layer=False)
+            if cov_1d.size == n_cells:
+                combined_valid |= np.isfinite(cov_1d) & (cov_1d > 0)
 
-        sample = get_variable_2d(
-            ds=ds,
-            variable_name="ice_coverage",
-            mt_idx=0,
-            has_layer=True,
-        )
+        for spec in ICE_VARIABLE_SPECS:
+            var_name = spec["name"]
+            if var_name not in ds:
+                continue
+            val_1d = get_variable_2d(ds, var_name, mt_idx=0, has_layer=bool(spec.get("has_layer", False)))
+            if val_1d.size == n_cells:
+                combined_valid |= np.isfinite(val_1d)
 
-        valid_mask = ~np.isnan(sample) & ~np.isnan(lat_2d) & ~np.isnan(lon_2d)
-        points = np.column_stack((lon_2d[valid_mask], lat_2d[valid_mask]))
+        valid_mask = combined_valid & np.isfinite(lat_1d) & np.isfinite(lon_1d)
+        points = np.column_stack((lon_1d[valid_mask], lat_1d[valid_mask]))
 
         if len(points) == 0:
-            raise ValueError("공통 Delaunay 생성을 위한 유효 points가 없습니다.")
+            raise ValueError("공통 해빙 격자 생성을 위한 유효 points가 없습니다.")
 
-        print(f"[공통 Delaunay] points={len(points):,} 생성 중...")
-        tri = Delaunay(points)
+        print(f"[cKDTree 생성] points={len(points):,} 생성 중...")
+        tree = cKDTree(points)
 
     elapsed = time.time() - t0
-    print(f"[공통 Delaunay 완료] 소요 시간: {elapsed:.2f}초")
+    print(f"[공통 해빙 격자 완료] 소요 시간: {elapsed:.2f}초")
 
     return {
-        "tri": tri,
+        "tree": tree,
         "valid_mask": valid_mask,
         "points": points,
         "total_cells": int(valid_mask.size),
-        "source_file": str(first_ice_file)
+        "source_file": str(first_ice_file),
     }
 
 
 def save_shared_grid(shared_grid: Dict, shared_grid_path: str) -> Path:
-    """shared_grid를 파일로 저장"""
     grid_file = Path(shared_grid_path)
     grid_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -202,7 +209,6 @@ def save_shared_grid(shared_grid: Dict, shared_grid_path: str) -> Path:
 
 
 def load_shared_grid(shared_grid_path: str) -> Dict:
-    """저장된 shared_grid 파일을 로드"""
     grid_file = Path(shared_grid_path)
     if not grid_file.exists():
         raise FileNotFoundError(f"shared_grid 파일을 찾을 수 없습니다: {grid_file}")
@@ -210,30 +216,30 @@ def load_shared_grid(shared_grid_path: str) -> Dict:
     with open(grid_file, "rb") as f:
         shared_grid = pickle.load(f)
 
-    required_keys = {"tri", "valid_mask", "points"}
+    required_keys = {"valid_mask", "points"}
     missing = required_keys - set(shared_grid.keys())
     if missing:
         raise ValueError(f"shared_grid 필수 키가 누락되었습니다: {sorted(missing)}")
 
     valid_mask = np.asarray(shared_grid["valid_mask"], dtype=bool)
-    points = np.asarray(shared_grid["points"])
-    tri: Delaunay = shared_grid["tri"]
+    points = np.asarray(shared_grid["points"], dtype=np.float64)
 
     if valid_mask.ndim != 1:
         raise ValueError(f"valid_mask는 1차원 배열이어야 합니다. 현재 ndim={valid_mask.ndim}")
-    if int(valid_mask.sum()) != len(points) or len(points) != tri.npoints:
+    if int(valid_mask.sum()) != len(points):
         raise ValueError(
-            f"shared_grid 내부 정합성 오류: valid_mask.sum()={int(valid_mask.sum())}, "
-            f"len(points)={len(points)}, tri.npoints={tri.npoints}"
+            f"shared_grid 내부 정합성 오류: valid_mask.sum()={int(valid_mask.sum())}, len(points)={len(points)}"
         )
+
+    tree = shared_grid.get("tree")
+    if not isinstance(tree, cKDTree) or tree.n != len(points):
+        tree = cKDTree(points)
+        shared_grid["tree"] = tree
 
     shared_grid["valid_mask"] = valid_mask
     shared_grid["points"] = points
 
-    print(
-        f"[shared_grid 로드 완료] {grid_file} "
-        f"(points={len(points)})"
-    )
+    print(f"[shared_grid 로드 완료] {grid_file} (points={len(points):,})")
     return shared_grid
 
 
@@ -242,12 +248,11 @@ def get_or_create_shared_grid(
         first_ice_file: Path,
         rebuild: bool = False,
 ) -> Dict:
-    """저장된 shared_grid가 있으면 로드하고, 없거나 rebuild=True이면 생성 후 저장"""
     grid_file = Path(shared_grid_path)
     if grid_file.exists() and not rebuild:
         return load_shared_grid(shared_grid_path)
 
-    shared_grid = build_shared_triangulation(first_ice_file, )
+    shared_grid = build_shared_grid(first_ice_file)
     save_shared_grid(shared_grid, shared_grid_path)
     return shared_grid
 
@@ -259,10 +264,8 @@ def validate_dataset_grid_compatibility(
         check_coords: bool = False,
         coord_atol: float = 1e-4,
 ) -> None:
-    """현재 NetCDF 데이터셋이 shared_grid의 격자 크기, valid_mask, points와 호환되는지 검증"""
     valid_mask: np.ndarray = shared_grid["valid_mask"]
     points: np.ndarray = shared_grid["points"]
-    tri: Delaunay = shared_grid["tri"]
 
     if "Latitude" not in ds or "Longitude" not in ds:
         raise KeyError(f"좌표 변수(Latitude/Longitude)가 없습니다: {file_path.name}")
@@ -283,13 +286,7 @@ def validate_dataset_grid_compatibility(
             f"current={masked_points.shape}, shared={points.shape}"
         )
 
-    if masked_points.shape[0] != tri.npoints:
-        raise ValueError(
-            f"유효 포인트 수와 Delaunay 정점 수 불일치 ({file_path.name}): "
-            f"current={masked_points.shape[0]}, tri.npoints={tri.npoints}"
-        )
-
-    if check_coords and not np.allclose(masked_points, points, atol=coord_atol, equal_nan=False):
+    if check_coords and not np.allclose(masked_points, points, atol=coord_atol, equal_nan=True):
         raise ValueError(
             f"유효 좌표(lon, lat) 값 불일치 ({file_path.name}, atol={coord_atol}). "
             f"--rebuild_shared_grid 옵션으로 재생성 여부를 확인하세요."
@@ -302,9 +299,8 @@ def validate_variable_compatibility(
         file_path: Path,
         variable_name: str,
 ) -> np.ndarray:
-    """추출된 1D 변수 배열과 shared_grid(valid_mask, tri)의 호환성을 검증하고 마스킹된 값 반환"""
     valid_mask: np.ndarray = shared_grid["valid_mask"]
-    tri: Delaunay = shared_grid["tri"]
+    points: np.ndarray = shared_grid["points"]
 
     if raw_1d.ndim != 1:
         raise ValueError(f"{variable_name} 배열은 1차원이어야 합니다. ndim={raw_1d.ndim}")
@@ -316,10 +312,10 @@ def validate_variable_compatibility(
         )
 
     values = raw_1d[valid_mask].astype(np.float64)
-    if values.size != tri.npoints:
+    if values.size != len(points):
         raise ValueError(
             f"마스킹 후 유효 값 수 불일치 ({file_path.name} / {variable_name}): "
-            f"values={values.size}, tri.npoints={tri.npoints}"
+            f"values={values.size}, points={len(points)}"
         )
 
     return values
@@ -327,7 +323,7 @@ def validate_variable_compatibility(
 
 def to_json_data(grid: np.ndarray, round_digits: int = 2) -> List[Optional[float]]:
     rounded = np.round(grid, round_digits).flatten()
-    nan_mask = np.isnan(rounded)
+    nan_mask = ~np.isfinite(rounded)
     return [None if is_nan else float(value) for value, is_nan in zip(rounded, nan_mask)]
 
 
@@ -364,18 +360,23 @@ def build_header(
     }
 
 
-def interpolate_variable(
+def interpolate_ice_variable(
         ds: xr.Dataset,
         spec: Dict,
         mt_idx: int,
         shared_grid: Dict,
         file_path: Path,
+        max_dist_deg: float = DEFAULT_MAX_DIST_DEG,
+        no_ice_grid_mask: Optional[np.ndarray] = None,
 ) -> List[Optional[float]]:
+    """
+    해빙 유효 관측치 기반 최근접 보간을 수행하고, 해빙이 없거나 거리 임계값을 초과하는 격자는 NaN(None)으로 반환합니다.
+    """
     raw = get_variable_2d(
         ds=ds,
         variable_name=spec["name"],
         mt_idx=mt_idx,
-        has_layer=spec["has_layer"],
+        has_layer=bool(spec.get("has_layer", False)),
     )
 
     values = validate_variable_compatibility(
@@ -385,10 +386,61 @@ def interpolate_variable(
         variable_name=spec["name"],
     )
 
-    interpolator = LinearNDInterpolator(shared_grid["tri"], values)
-    grid = interpolator(GRID_LON, GRID_LAT)
+    valid_obs_mask = np.isfinite(values)
+    if spec["name"] == "ice_thickness":
+        valid_obs_mask &= values > 0.0
 
-    return to_json_data(grid)
+    grid = np.full(NY * NX, np.nan, dtype=np.float64)
+
+    if np.any(valid_obs_mask):
+        obs_points = shared_grid["points"][valid_obs_mask]
+        obs_values = values[valid_obs_mask]
+
+        obs_tree = (
+            shared_grid["tree"]
+            if np.all(valid_obs_mask)
+            else cKDTree(obs_points)
+        )
+        dists, indices = obs_tree.query(GRID_COORDS, k=1, distance_upper_bound=max_dist_deg)
+        in_range = np.isfinite(dists) & (dists <= max_dist_deg) & (indices < len(obs_values))
+        grid[in_range] = obs_values[indices[in_range]]
+
+    grid_2d = grid.reshape(NY, NX)
+    if no_ice_grid_mask is not None:
+        grid_2d[no_ice_grid_mask] = np.nan
+
+    return to_json_data(grid_2d)
+
+
+def build_no_ice_grid_mask(
+        ds: xr.Dataset,
+        shared_grid: Dict,
+        mt_idx: int,
+        max_dist_deg: float = DEFAULT_MAX_DIST_DEG,
+) -> Optional[np.ndarray]:
+    """
+    현재 시점(mt_idx)의 ice_coverage를 기준으로 해빙이 없는 목표 격자(True = 해빙 없음 -> None) 마스크를 생성합니다.
+    """
+    if "ice_coverage" not in ds:
+        return None
+
+    cov_raw = get_variable_2d(ds, "ice_coverage", mt_idx=mt_idx, has_layer=False)
+    cov_values = validate_variable_compatibility(
+        raw_1d=cov_raw,
+        shared_grid=shared_grid,
+        file_path=Path(str(shared_grid.get("source_file", "ice.nc"))),
+        variable_name="ice_coverage",
+    )
+
+    has_ice_obs = np.isfinite(cov_values) & (cov_values > 0.0)
+    if not np.any(has_ice_obs):
+        return np.ones((NY, NX), dtype=bool)
+
+    ice_points = shared_grid["points"][has_ice_obs]
+    ice_tree = cKDTree(ice_points)
+    dists, _ = ice_tree.query(GRID_COORDS, k=1, distance_upper_bound=max_dist_deg)
+    has_ice_grid = np.isfinite(dists) & (dists <= max_dist_deg)
+    return (~has_ice_grid).reshape(NY, NX)
 
 
 def save_payload(
@@ -409,8 +461,7 @@ def save_payload(
     return output_filename
 
 
-
-def insert_payload(conn):
+def insert_payload(conn: sqlite3.Connection) -> None:
     try:
         query_batch = """INSERT INTO Earth_Tbl (forecast_time, mode, type, surface, level, grib2json)
                          VALUES (?, ?, ?, ?, ?, ?)
@@ -424,9 +475,8 @@ def insert_payload(conn):
                                ON CONFLICT(forecast_time, mode, type, surface, level) DO UPDATE SET
             grib2json = excluded.grib2json"""
         conn.cursor().executemany(query_current, current_data)
-
         conn.commit()
-        print(f"batch_data[{len(batch_data)}],current_data[{len(current_data)}]: 데이터가 Insert 되었습니다.")
+        print(f"batch_data[{len(batch_data)}], current_data[{len(current_data)}]: 데이터가 Insert 되었습니다.")
 
     except Exception as e:
         print(f"데이터 Insert 중 오류 발생: {e}")
@@ -438,14 +488,17 @@ def process_ice_file(
         output_dir: str,
         mt_range: Optional[Tuple[int, int]] = None,
         check_coords: bool = False,
-        conn=None
+        max_dist_deg: float = DEFAULT_MAX_DIST_DEG,
+        conn: Optional[sqlite3.Connection] = None,
 ) -> List[str]:
     generated_files: List[str] = []
 
     file_path, ref_time, forecast_hour = file_info
     time_str = get_time_str(forecast_hour)
-    print(f"[ice 파일 처리 시작] file={file_path.name}, ref_time={ref_time}, forecast_hour={forecast_hour}, time_str={time_str}")
-
+    print(
+        f"[ice 파일 처리 시작] file={file_path.name}, ref_time={ref_time}, "
+        f"forecast_hour={forecast_hour}, time_str={time_str}"
+    )
 
     with xr.open_dataset(file_path, chunks={"MT": 1}) as ds:
         validate_dataset_grid_compatibility(
@@ -456,7 +509,6 @@ def process_ice_file(
         )
 
         mt_array = pd.to_datetime(ds["MT"].compute().values)
-
         if mt_array.size == 0:
             print(f"[스킵] MT가 비어 있습니다: {file_path}")
             return generated_files
@@ -473,7 +525,7 @@ def process_ice_file(
             return generated_files
 
         grouped_specs: Dict[str, List[Dict]] = {}
-        for spec in PROG_VARIABLE_SPECS:
+        for spec in ICE_VARIABLE_SPECS:
             if spec["name"] not in ds:
                 print(f"[변수 없음] {file_path.name}: {spec['name']} 스킵")
                 continue
@@ -481,20 +533,27 @@ def process_ice_file(
 
         for mt_idx in range(start_idx, end_idx + 1):
             t0 = time.time()
+            no_ice_grid_mask = build_no_ice_grid_mask(
+                ds=ds,
+                shared_grid=shared_grid,
+                mt_idx=mt_idx,
+                max_dist_deg=max_dist_deg,
+            )
 
             for output_type, output_specs in grouped_specs.items():
                 payload: List[Dict] = []
 
                 for spec in output_specs:
                     try:
-                        data = interpolate_variable(
+                        data = interpolate_ice_variable(
                             ds=ds,
                             spec=spec,
                             mt_idx=mt_idx,
                             shared_grid=shared_grid,
                             file_path=file_path,
+                            max_dist_deg=max_dist_deg,
+                            no_ice_grid_mask=no_ice_grid_mask,
                         )
-
                         payload.append(
                             {
                                 "header": build_header(
@@ -506,16 +565,14 @@ def process_ice_file(
                                 "data": data,
                             }
                         )
-
                     except Exception as error:
                         print(f"[변수 처리 오류] {file_path.name} / {spec['name']}: {error}")
-
                     finally:
                         gc.collect()
 
                 if payload:
                     if conn:
-                        record = (time_str, 'ice', output_type, 'surface', 'level', json.dumps(payload))
+                        record = (time_str, "ice", output_type, "surface", "level", json.dumps(payload))
                         batch_data.append(record)
                         if forecast_hour == 0:
                             current_data.append(record)
@@ -568,26 +625,23 @@ def update_catalog(output_dir: str, generated_files: List[str]) -> None:
 
 
 def get_ref_time() -> str:
-
     today_00_utc = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0 )
-
+        hour=0, minute=0, second=0, microsecond=0
+    )
     return today_00_utc.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
-def get_time_str( first_forecast_hour: int) -> str:
+def get_time_str(first_forecast_hour: int) -> str:
     today_00_utc = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0 )
-
+        hour=0, minute=0, second=0, microsecond=0
+    )
     forecast_time = today_00_utc + timedelta(hours=first_forecast_hour)
-    time_str = f"{forecast_time.strftime("%Y%m%d%H")}"
-
-    return time_str
+    return forecast_time.strftime("%Y%m%d%H")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Convert RTOFS ice.nc files to GRIB2 JSON using a reusable shared_grid file."
+        description="Convert RTOFS ice.nc files to GRIB2 JSON using cKDTree nearest interpolation with no-ice masking."
     )
     parser.add_argument(
         "--download_dir",
@@ -618,25 +672,36 @@ def main():
         help="Verify masked (lon, lat) coordinates against shared_grid points",
     )
     parser.add_argument(
+        "--max_dist_deg",
+        type=float,
+        default=DEFAULT_MAX_DIST_DEG,
+        help="Maximum nearest-neighbor distance in degrees (default: 2.0)",
+    )
+    parser.add_argument(
         "--mt_range",
         type=int,
         nargs=2,
         default=None,
         help="Optional MT index range: --mt_range 0 0",
     )
-
     parser.add_argument(
         "--useDb",
         type=str,
         default="Y",
         choices=["Y", "N"],
-        help="Whether a database insert occurred (default: Y)"
+        help="Whether a database insert occurred (default: Y)",
+    )
+    parser.add_argument(
+        "--db_path",
+        type=str,
+        default=DEFAULT_DB_PATH,
+        help="SQLite database file path",
     )
 
     args = parser.parse_args()
-    conn = None
+    conn: Optional[sqlite3.Connection] = None
     if args.useDb == "Y":
-        conn = sqlite3.connect('/Users/unchil/AndroidStudioProjects/OceanWaterInfo/oceanwater.sqlite')
+        conn = sqlite3.connect(args.db_path)
 
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -666,7 +731,8 @@ def main():
                 output_dir=args.output_dir,
                 mt_range=tuple(args.mt_range) if args.mt_range else None,
                 check_coords=args.check_coords,
-                conn=conn
+                max_dist_deg=args.max_dist_deg,
+                conn=conn,
             )
             all_generated_files.extend(generated_files)
         except Exception as error:
@@ -678,7 +744,10 @@ def main():
     if conn:
         insert_payload(conn)
         time_str = get_time_str(0)
-        conn.cursor().execute("DELETE FROM Earth_Current_Tbl WHERE mode = ? AND type LIKE ? AND forecast_time < ?", ('ice', 'ice%', time_str,))
+        conn.cursor().execute(
+            "DELETE FROM Earth_Current_Tbl WHERE mode = ? AND type LIKE ? AND forecast_time < ?",
+            ("ice", "ice%", time_str),
+        )
         conn.commit()
         conn.close()
     else:
